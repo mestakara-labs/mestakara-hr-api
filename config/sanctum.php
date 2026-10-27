@@ -50,7 +50,7 @@ return [
     |
     */
 
-    'expiration' => null,
+    'expiration' => env('SANCTUM_EXPIRATION', 480), // menit; 480 = 8 jam, sama dengan cookie sesi front end
 
     /*
     |--------------------------------------------------------------------------

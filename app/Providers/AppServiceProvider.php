@@ -2,6 +2,8 @@
 
 namespace App\Providers;
 
+use App\Support\ApiDocumentation;
+use Dedoc\Scramble\Scramble;
 use Illuminate\Support\ServiceProvider;
 
 class AppServiceProvider extends ServiceProvider
@@ -19,6 +21,9 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
-        //
+        // Dokumentasi API (/docs/api): respons error memakai bentuk standar aplikasi.
+        Scramble::configure()->withDocumentTransformers(
+            fn ($openApi) => ApiDocumentation::useStandardErrorResponses($openApi),
+        );
     }
 }

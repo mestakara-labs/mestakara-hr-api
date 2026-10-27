@@ -1,0 +1,160 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1312" height="626" viewBox="0 0 1312 626">
+<rect width="1312" height="626" fill="#FFFFFF"/>
+<text x="20" y="28" font-family="Tahoma, 'DejaVu Sans', Arial, sans-serif" font-size="15" font-weight="bold" fill="#1F2937">Ringkasan ERD — 66 tabel dalam 8 modul</text>
+<rect x="20" y="50" width="300" height="192" rx="6" fill="#FFFFFF" stroke="#215F9A" stroke-width="1.6"/>
+<rect x="20" y="50" width="300" height="24" rx="6" fill="#215F9A"/>
+<text x="30" y="66" font-family="Tahoma, 'DejaVu Sans', Arial, sans-serif" font-size="11.5" font-weight="bold" fill="#FFFFFF">3.1 Organisasi &amp; Master Penempatan</text>
+<rect x="30" y="80" width="280" height="18" rx="3" fill="#F3F4F6"/>
+<text x="36" y="93" font-family="Tahoma, 'DejaVu Sans', Arial, sans-serif" font-size="10.5" fill="#111827">organization_decrees</text>
+<rect x="30" y="102" width="280" height="18" rx="3" fill="#F3F4F6"/>
+<text x="36" y="115" font-family="Tahoma, 'DejaVu Sans', Arial, sans-serif" font-size="10.5" fill="#111827">divisions</text>
+<rect x="30" y="124" width="280" height="18" rx="3" fill="#F3F4F6"/>
+<text x="36" y="137" font-family="Tahoma, 'DejaVu Sans', Arial, sans-serif" font-size="10.5" fill="#111827">positions</text>
+<rect x="30" y="146" width="280" height="18" rx="3" fill="#F3F4F6"/>
+<text x="36" y="159" font-family="Tahoma, 'DejaVu Sans', Arial, sans-serif" font-size="10.5" fill="#111827">sub_units</text>
+<rect x="30" y="168" width="280" height="18" rx="3" fill="#F3F4F6"/>
+<text x="36" y="181" font-family="Tahoma, 'DejaVu Sans', Arial, sans-serif" font-size="10.5" fill="#111827">placement_categories</text>
+<rect x="30" y="190" width="280" height="18" rx="3" fill="#F3F4F6"/>
+<text x="36" y="203" font-family="Tahoma, 'DejaVu Sans', Arial, sans-serif" font-size="10.5" fill="#111827">placement_objects</text>
+<rect x="30" y="212" width="280" height="18" rx="3" fill="#F3F4F6"/>
+<text x="36" y="225" font-family="Tahoma, 'DejaVu Sans', Arial, sans-serif" font-size="10.5" fill="#111827">placement_object_sub_units</text>
+<rect x="344" y="50" width="300" height="148" rx="6" fill="#FFFFFF" stroke="#1B8A4E" stroke-width="1.6"/>
+<rect x="344" y="50" width="300" height="24" rx="6" fill="#1B8A4E"/>
+<text x="354" y="66" font-family="Tahoma, 'DejaVu Sans', Arial, sans-serif" font-size="11.5" font-weight="bold" fill="#FFFFFF">3.2 Kepegawaian &amp; Akun</text>
+<rect x="354" y="80" width="280" height="18" rx="3" fill="#F3F4F6"/>
+<text x="360" y="93" font-family="Tahoma, 'DejaVu Sans', Arial, sans-serif" font-size="10.5" fill="#111827">files</text>
+<rect x="354" y="102" width="280" height="18" rx="3" fill="#F3F4F6"/>
+<text x="360" y="115" font-family="Tahoma, 'DejaVu Sans', Arial, sans-serif" font-size="10.5" fill="#111827">users</text>
+<rect x="354" y="124" width="280" height="18" rx="3" fill="#F3F4F6"/>
+<text x="360" y="137" font-family="Tahoma, 'DejaVu Sans', Arial, sans-serif" font-size="10.5" fill="#111827">employees</text>
+<rect x="354" y="146" width="280" height="18" rx="3" fill="#F3F4F6"/>
+<text x="360" y="159" font-family="Tahoma, 'DejaVu Sans', Arial, sans-serif" font-size="10.5" fill="#111827">employee_educations</text>
+<rect x="354" y="168" width="280" height="18" rx="3" fill="#F3F4F6"/>
+<text x="360" y="181" font-family="Tahoma, 'DejaVu Sans', Arial, sans-serif" font-size="10.5" fill="#111827">employee_family_members</text>
+<rect x="668" y="50" width="300" height="302" rx="6" fill="#FFFFFF" stroke="#7B4FB0" stroke-width="1.6"/>
+<rect x="668" y="50" width="300" height="24" rx="6" fill="#7B4FB0"/>
+<text x="678" y="66" font-family="Tahoma, 'DejaVu Sans', Arial, sans-serif" font-size="11.5" font-weight="bold" fill="#FFFFFF">3.3 Jabatan Karyawan &amp; Mutasi</text>
+<rect x="678" y="80" width="280" height="18" rx="3" fill="#F3F4F6"/>
+<text x="684" y="93" font-family="Tahoma, 'DejaVu Sans', Arial, sans-serif" font-size="10.5" fill="#111827">position_assignments</text>
+<rect x="678" y="102" width="280" height="18" rx="3" fill="#F3F4F6"/>
+<text x="684" y="115" font-family="Tahoma, 'DejaVu Sans', Arial, sans-serif" font-size="10.5" fill="#111827">assignment_placement_objects</text>
+<rect x="678" y="124" width="280" height="18" rx="3" fill="#F3F4F6"/>
+<text x="684" y="137" font-family="Tahoma, 'DejaVu Sans', Arial, sans-serif" font-size="10.5" fill="#111827">assignment_supervisors</text>
+<rect x="678" y="146" width="280" height="18" rx="3" fill="#F3F4F6"/>
+<text x="684" y="159" font-family="Tahoma, 'DejaVu Sans', Arial, sans-serif" font-size="10.5" fill="#111827">supervisor_changes</text>
+<rect x="678" y="168" width="280" height="18" rx="3" fill="#F3F4F6"/>
+<text x="684" y="181" font-family="Tahoma, 'DejaVu Sans', Arial, sans-serif" font-size="10.5" fill="#111827">supervisor_change_details</text>
+<rect x="678" y="190" width="280" height="18" rx="3" fill="#F3F4F6"/>
+<text x="684" y="203" font-family="Tahoma, 'DejaVu Sans', Arial, sans-serif" font-size="10.5" fill="#111827">transfers</text>
+<rect x="678" y="212" width="280" height="18" rx="3" fill="#F3F4F6"/>
+<text x="684" y="225" font-family="Tahoma, 'DejaVu Sans', Arial, sans-serif" font-size="10.5" fill="#111827">transfer_items</text>
+<rect x="678" y="234" width="280" height="18" rx="3" fill="#F3F4F6"/>
+<text x="684" y="247" font-family="Tahoma, 'DejaVu Sans', Arial, sans-serif" font-size="10.5" fill="#111827">transfer_item_placement_objects</text>
+<rect x="678" y="256" width="280" height="18" rx="3" fill="#F3F4F6"/>
+<text x="684" y="269" font-family="Tahoma, 'DejaVu Sans', Arial, sans-serif" font-size="10.5" fill="#111827">transfer_item_supervisors</text>
+<rect x="678" y="278" width="280" height="18" rx="3" fill="#F3F4F6"/>
+<text x="684" y="291" font-family="Tahoma, 'DejaVu Sans', Arial, sans-serif" font-size="10.5" fill="#111827">transfer_ended_assignments</text>
+<rect x="678" y="300" width="280" height="18" rx="3" fill="#F3F4F6"/>
+<text x="684" y="313" font-family="Tahoma, 'DejaVu Sans', Arial, sans-serif" font-size="10.5" fill="#111827">legacy_assignments</text>
+<rect x="678" y="322" width="280" height="18" rx="3" fill="#F3F4F6"/>
+<text x="684" y="335" font-family="Tahoma, 'DejaVu Sans', Arial, sans-serif" font-size="10.5" fill="#111827">nomenclature_aliases</text>
+<rect x="992" y="50" width="300" height="258" rx="6" fill="#FFFFFF" stroke="#C2410C" stroke-width="1.6"/>
+<rect x="992" y="50" width="300" height="24" rx="6" fill="#C2410C"/>
+<text x="1002" y="66" font-family="Tahoma, 'DejaVu Sans', Arial, sans-serif" font-size="11.5" font-weight="bold" fill="#FFFFFF">3.4 Shift &amp; Jadwal Kerja</text>
+<rect x="1002" y="80" width="280" height="18" rx="3" fill="#F3F4F6"/>
+<text x="1008" y="93" font-family="Tahoma, 'DejaVu Sans', Arial, sans-serif" font-size="10.5" fill="#111827">shifts</text>
+<rect x="1002" y="102" width="280" height="18" rx="3" fill="#F3F4F6"/>
+<text x="1008" y="115" font-family="Tahoma, 'DejaVu Sans', Arial, sans-serif" font-size="10.5" fill="#111827">holidays</text>
+<rect x="1002" y="124" width="280" height="18" rx="3" fill="#F3F4F6"/>
+<text x="1008" y="137" font-family="Tahoma, 'DejaVu Sans', Arial, sans-serif" font-size="10.5" fill="#111827">work_patterns</text>
+<rect x="1002" y="146" width="280" height="18" rx="3" fill="#F3F4F6"/>
+<text x="1008" y="159" font-family="Tahoma, 'DejaVu Sans', Arial, sans-serif" font-size="10.5" fill="#111827">pattern_slots</text>
+<rect x="1002" y="168" width="280" height="18" rx="3" fill="#F3F4F6"/>
+<text x="1008" y="181" font-family="Tahoma, 'DejaVu Sans', Arial, sans-serif" font-size="10.5" fill="#111827">pattern_slot_days</text>
+<rect x="1002" y="190" width="280" height="18" rx="3" fill="#F3F4F6"/>
+<text x="1008" y="203" font-family="Tahoma, 'DejaVu Sans', Arial, sans-serif" font-size="10.5" fill="#111827">work_groups</text>
+<rect x="1002" y="212" width="280" height="18" rx="3" fill="#F3F4F6"/>
+<text x="1008" y="225" font-family="Tahoma, 'DejaVu Sans', Arial, sans-serif" font-size="10.5" fill="#111827">work_group_members</text>
+<rect x="1002" y="234" width="280" height="18" rx="3" fill="#F3F4F6"/>
+<text x="1008" y="247" font-family="Tahoma, 'DejaVu Sans', Arial, sans-serif" font-size="10.5" fill="#111827">schedule_periods</text>
+<rect x="1002" y="256" width="280" height="18" rx="3" fill="#F3F4F6"/>
+<text x="1008" y="269" font-family="Tahoma, 'DejaVu Sans', Arial, sans-serif" font-size="10.5" fill="#111827">schedules</text>
+<rect x="1002" y="278" width="280" height="18" rx="3" fill="#F3F4F6"/>
+<text x="1008" y="291" font-family="Tahoma, 'DejaVu Sans', Arial, sans-serif" font-size="10.5" fill="#111827">schedule_changes</text>
+<rect x="344" y="218" width="300" height="214" rx="6" fill="#FFFFFF" stroke="#B91C1C" stroke-width="1.6"/>
+<rect x="344" y="218" width="300" height="24" rx="6" fill="#B91C1C"/>
+<text x="354" y="234" font-family="Tahoma, 'DejaVu Sans', Arial, sans-serif" font-size="11.5" font-weight="bold" fill="#FFFFFF">3.5 Penambahan &amp; Penonaktifan Karyawan</text>
+<rect x="354" y="248" width="280" height="18" rx="3" fill="#F3F4F6"/>
+<text x="360" y="261" font-family="Tahoma, 'DejaVu Sans', Arial, sans-serif" font-size="10.5" fill="#111827">employee_activations</text>
+<rect x="354" y="270" width="280" height="18" rx="3" fill="#F3F4F6"/>
+<text x="360" y="283" font-family="Tahoma, 'DejaVu Sans', Arial, sans-serif" font-size="10.5" fill="#111827">employee_activation_items</text>
+<rect x="354" y="292" width="280" height="18" rx="3" fill="#F3F4F6"/>
+<text x="360" y="305" font-family="Tahoma, 'DejaVu Sans', Arial, sans-serif" font-size="10.5" fill="#111827">activation_item_placement_objects</text>
+<rect x="354" y="314" width="280" height="18" rx="3" fill="#F3F4F6"/>
+<text x="360" y="327" font-family="Tahoma, 'DejaVu Sans', Arial, sans-serif" font-size="10.5" fill="#111827">activation_item_supervisors</text>
+<rect x="354" y="336" width="280" height="18" rx="3" fill="#F3F4F6"/>
+<text x="360" y="349" font-family="Tahoma, 'DejaVu Sans', Arial, sans-serif" font-size="10.5" fill="#111827">employee_terminations</text>
+<rect x="354" y="358" width="280" height="18" rx="3" fill="#F3F4F6"/>
+<text x="360" y="371" font-family="Tahoma, 'DejaVu Sans', Arial, sans-serif" font-size="10.5" fill="#111827">employee_termination_items</text>
+<rect x="354" y="380" width="280" height="18" rx="3" fill="#F3F4F6"/>
+<text x="360" y="393" font-family="Tahoma, 'DejaVu Sans', Arial, sans-serif" font-size="10.5" fill="#111827">termination_ended_assignments</text>
+<rect x="354" y="402" width="280" height="18" rx="3" fill="#F3F4F6"/>
+<text x="360" y="415" font-family="Tahoma, 'DejaVu Sans', Arial, sans-serif" font-size="10.5" fill="#111827">termination_ended_memberships</text>
+<rect x="20" y="262" width="300" height="236" rx="6" fill="#FFFFFF" stroke="#0E7490" stroke-width="1.6"/>
+<rect x="20" y="262" width="300" height="24" rx="6" fill="#0E7490"/>
+<text x="30" y="278" font-family="Tahoma, 'DejaVu Sans', Arial, sans-serif" font-size="11.5" font-weight="bold" fill="#FFFFFF">3.6 Data Dasar Upah</text>
+<rect x="30" y="292" width="280" height="18" rx="3" fill="#F3F4F6"/>
+<text x="36" y="305" font-family="Tahoma, 'DejaVu Sans', Arial, sans-serif" font-size="10.5" fill="#111827">cost_centers</text>
+<rect x="30" y="314" width="280" height="18" rx="3" fill="#F3F4F6"/>
+<text x="36" y="327" font-family="Tahoma, 'DejaVu Sans', Arial, sans-serif" font-size="10.5" fill="#111827">payroll_groups</text>
+<rect x="30" y="336" width="280" height="18" rx="3" fill="#F3F4F6"/>
+<text x="36" y="349" font-family="Tahoma, 'DejaVu Sans', Arial, sans-serif" font-size="10.5" fill="#111827">employee_bank_accounts</text>
+<rect x="30" y="358" width="280" height="18" rx="3" fill="#F3F4F6"/>
+<text x="36" y="371" font-family="Tahoma, 'DejaVu Sans', Arial, sans-serif" font-size="10.5" fill="#111827">employee_cost_centers</text>
+<rect x="30" y="380" width="280" height="18" rx="3" fill="#F3F4F6"/>
+<text x="36" y="393" font-family="Tahoma, 'DejaVu Sans', Arial, sans-serif" font-size="10.5" fill="#111827">employee_wage_schemes</text>
+<rect x="30" y="402" width="280" height="18" rx="3" fill="#F3F4F6"/>
+<text x="36" y="415" font-family="Tahoma, 'DejaVu Sans', Arial, sans-serif" font-size="10.5" fill="#111827">overtime_settings</text>
+<rect x="30" y="424" width="280" height="18" rx="3" fill="#F3F4F6"/>
+<text x="36" y="437" font-family="Tahoma, 'DejaVu Sans', Arial, sans-serif" font-size="10.5" fill="#111827">signature_settings</text>
+<rect x="30" y="446" width="280" height="18" rx="3" fill="#F3F4F6"/>
+<text x="36" y="459" font-family="Tahoma, 'DejaVu Sans', Arial, sans-serif" font-size="10.5" fill="#111827">signature_sections</text>
+<rect x="30" y="468" width="280" height="18" rx="3" fill="#F3F4F6"/>
+<text x="36" y="481" font-family="Tahoma, 'DejaVu Sans', Arial, sans-serif" font-size="10.5" fill="#111827">signature_section_signers</text>
+<rect x="992" y="328" width="300" height="258" rx="6" fill="#FFFFFF" stroke="#4D7C0F" stroke-width="1.6"/>
+<rect x="992" y="328" width="300" height="24" rx="6" fill="#4D7C0F"/>
+<text x="1002" y="344" font-family="Tahoma, 'DejaVu Sans', Arial, sans-serif" font-size="11.5" font-weight="bold" fill="#FFFFFF">3.7 Absensi &amp; Lembur</text>
+<rect x="1002" y="358" width="280" height="18" rx="3" fill="#F3F4F6"/>
+<text x="1008" y="371" font-family="Tahoma, 'DejaVu Sans', Arial, sans-serif" font-size="10.5" fill="#111827">payroll_periods</text>
+<rect x="1002" y="380" width="280" height="18" rx="3" fill="#F3F4F6"/>
+<text x="1008" y="393" font-family="Tahoma, 'DejaVu Sans', Arial, sans-serif" font-size="10.5" fill="#111827">attendance_import_batches</text>
+<rect x="1002" y="402" width="280" height="18" rx="3" fill="#F3F4F6"/>
+<text x="1008" y="415" font-family="Tahoma, 'DejaVu Sans', Arial, sans-serif" font-size="10.5" fill="#111827">attendance_import_conflicts</text>
+<rect x="1002" y="424" width="280" height="18" rx="3" fill="#F3F4F6"/>
+<text x="1008" y="437" font-family="Tahoma, 'DejaVu Sans', Arial, sans-serif" font-size="10.5" fill="#111827">attendance_events</text>
+<rect x="1002" y="446" width="280" height="18" rx="3" fill="#F3F4F6"/>
+<text x="1008" y="459" font-family="Tahoma, 'DejaVu Sans', Arial, sans-serif" font-size="10.5" fill="#111827">attendance_days</text>
+<rect x="1002" y="468" width="280" height="18" rx="3" fill="#F3F4F6"/>
+<text x="1008" y="481" font-family="Tahoma, 'DejaVu Sans', Arial, sans-serif" font-size="10.5" fill="#111827">attendance_day_changes</text>
+<rect x="1002" y="490" width="280" height="18" rx="3" fill="#F3F4F6"/>
+<text x="1008" y="503" font-family="Tahoma, 'DejaVu Sans', Arial, sans-serif" font-size="10.5" fill="#111827">attendance_day_change_items</text>
+<rect x="1002" y="512" width="280" height="18" rx="3" fill="#F3F4F6"/>
+<text x="1008" y="525" font-family="Tahoma, 'DejaVu Sans', Arial, sans-serif" font-size="10.5" fill="#111827">overtime_entries</text>
+<rect x="1002" y="534" width="280" height="18" rx="3" fill="#F3F4F6"/>
+<text x="1008" y="547" font-family="Tahoma, 'DejaVu Sans', Arial, sans-serif" font-size="10.5" fill="#111827">overtime_entry_changes</text>
+<rect x="1002" y="556" width="280" height="18" rx="3" fill="#F3F4F6"/>
+<text x="1008" y="569" font-family="Tahoma, 'DejaVu Sans', Arial, sans-serif" font-size="10.5" fill="#111827">overtime_entry_change_items</text>
+<rect x="668" y="372" width="300" height="148" rx="6" fill="#FFFFFF" stroke="#B5651D" stroke-width="1.6"/>
+<rect x="668" y="372" width="300" height="24" rx="6" fill="#B5651D"/>
+<text x="678" y="388" font-family="Tahoma, 'DejaVu Sans', Arial, sans-serif" font-size="11.5" font-weight="bold" fill="#FFFFFF">3.8 Daftar Upah &amp; Kunci Periode</text>
+<rect x="678" y="402" width="280" height="18" rx="3" fill="#F3F4F6"/>
+<text x="684" y="415" font-family="Tahoma, 'DejaVu Sans', Arial, sans-serif" font-size="10.5" fill="#111827">payroll_deductions</text>
+<rect x="678" y="424" width="280" height="18" rx="3" fill="#F3F4F6"/>
+<text x="684" y="437" font-family="Tahoma, 'DejaVu Sans', Arial, sans-serif" font-size="10.5" fill="#111827">payroll_deduction_changes</text>
+<rect x="678" y="446" width="280" height="18" rx="3" fill="#F3F4F6"/>
+<text x="684" y="459" font-family="Tahoma, 'DejaVu Sans', Arial, sans-serif" font-size="10.5" fill="#111827">payroll_period_events</text>
+<rect x="678" y="468" width="280" height="18" rx="3" fill="#F3F4F6"/>
+<text x="684" y="481" font-family="Tahoma, 'DejaVu Sans', Arial, sans-serif" font-size="10.5" fill="#111827">payroll_snapshot_rows</text>
+<rect x="678" y="490" width="280" height="18" rx="3" fill="#F3F4F6"/>
+<text x="684" y="503" font-family="Tahoma, 'DejaVu Sans', Arial, sans-serif" font-size="10.5" fill="#111827">payroll_snapshot_signers</text>
+</svg>

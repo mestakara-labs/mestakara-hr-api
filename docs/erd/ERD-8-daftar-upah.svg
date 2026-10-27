@@ -1,0 +1,277 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1136" height="1042" viewBox="0 0 1136 1042">
+<rect width="1136" height="1042" fill="#FFFFFF"/>
+<text x="20" y="26" font-family="Tahoma, 'DejaVu Sans', Arial, sans-serif" font-size="14" font-weight="bold" fill="#1F2937">Daftar Upah &amp; Kunci Periode</text>
+<rect x="20" y="46" width="300" height="142" rx="4" fill="#FFFFFF" stroke="#B5651D" stroke-width="1.4"/>
+<path d="M20,70 V50 Q20,46 24,46 H316 Q320,46 320,50 V70 Z" fill="#B5651D"/>
+<text x="28" y="62" font-family="Tahoma, 'DejaVu Sans', Arial, sans-serif" font-size="12" font-weight="bold" fill="#FFFFFF">payroll_deductions</text>
+<text x="26" y="82" font-family="Tahoma, 'DejaVu Sans', Arial, sans-serif" font-size="8.5" font-weight="bold" fill="#B5651D">PK</text>
+<text x="58" y="82" font-family="Tahoma, 'DejaVu Sans', Arial, sans-serif" font-size="10.5" font-weight="bold" fill="#111827">id</text>
+<text x="314" y="82" text-anchor="end" font-family="Tahoma, 'DejaVu Sans', Arial, sans-serif" font-size="9.5" fill="#6B7280">uuid</text>
+<rect x="21" y="86.5" width="298" height="16" fill="#F3F4F6"/>
+<text x="26" y="98" font-family="Tahoma, 'DejaVu Sans', Arial, sans-serif" font-size="8.5" font-weight="bold" fill="#B5651D"></text>
+<text x="58" y="98" font-family="Tahoma, 'DejaVu Sans', Arial, sans-serif" font-size="10.5" fill="#111827">period</text>
+<text x="314" y="98" text-anchor="end" font-family="Tahoma, 'DejaVu Sans', Arial, sans-serif" font-size="9.5" fill="#6B7280">char(7)</text>
+<text x="26" y="114" font-family="Tahoma, 'DejaVu Sans', Arial, sans-serif" font-size="8.5" font-weight="bold" fill="#B5651D">FK</text>
+<text x="58" y="114" font-family="Tahoma, 'DejaVu Sans', Arial, sans-serif" font-size="10.5" fill="#111827">employee_id</text>
+<text x="314" y="114" text-anchor="end" font-family="Tahoma, 'DejaVu Sans', Arial, sans-serif" font-size="9.5" font-style="italic" fill="#6B7280">→ employees</text>
+<rect x="21" y="118.5" width="298" height="16" fill="#F3F4F6"/>
+<text x="26" y="130" font-family="Tahoma, 'DejaVu Sans', Arial, sans-serif" font-size="8.5" font-weight="bold" fill="#B5651D"></text>
+<text x="58" y="130" font-family="Tahoma, 'DejaVu Sans', Arial, sans-serif" font-size="10.5" fill="#111827">bpjs</text>
+<text x="314" y="130" text-anchor="end" font-family="Tahoma, 'DejaVu Sans', Arial, sans-serif" font-size="9.5" fill="#6B7280">int unsigned</text>
+<text x="26" y="146" font-family="Tahoma, 'DejaVu Sans', Arial, sans-serif" font-size="8.5" font-weight="bold" fill="#B5651D"></text>
+<text x="58" y="146" font-family="Tahoma, 'DejaVu Sans', Arial, sans-serif" font-size="10.5" fill="#111827">pph21</text>
+<text x="314" y="146" text-anchor="end" font-family="Tahoma, 'DejaVu Sans', Arial, sans-serif" font-size="9.5" fill="#6B7280">int unsigned</text>
+<rect x="21" y="150.5" width="298" height="16" fill="#F3F4F6"/>
+<text x="26" y="162" font-family="Tahoma, 'DejaVu Sans', Arial, sans-serif" font-size="8.5" font-weight="bold" fill="#B5651D"></text>
+<text x="58" y="162" font-family="Tahoma, 'DejaVu Sans', Arial, sans-serif" font-size="10.5" fill="#111827">unit</text>
+<text x="314" y="162" text-anchor="end" font-family="Tahoma, 'DejaVu Sans', Arial, sans-serif" font-size="9.5" fill="#6B7280">int unsigned</text>
+<text x="26" y="178" font-family="Tahoma, 'DejaVu Sans', Arial, sans-serif" font-size="8.5" font-weight="bold" fill="#B5651D">FK</text>
+<text x="58" y="178" font-family="Tahoma, 'DejaVu Sans', Arial, sans-serif" font-size="10.5" fill="#111827">updated_by?</text>
+<text x="314" y="178" text-anchor="end" font-family="Tahoma, 'DejaVu Sans', Arial, sans-serif" font-size="9.5" font-style="italic" fill="#6B7280">→ users</text>
+<rect x="20" y="214" width="300" height="158" rx="4" fill="#FFFFFF" stroke="#B5651D" stroke-width="1.4"/>
+<path d="M20,238 V218 Q20,214 24,214 H316 Q320,214 320,218 V238 Z" fill="#B5651D"/>
+<text x="28" y="230" font-family="Tahoma, 'DejaVu Sans', Arial, sans-serif" font-size="12" font-weight="bold" fill="#FFFFFF">payroll_deduction_changes</text>
+<text x="26" y="250" font-family="Tahoma, 'DejaVu Sans', Arial, sans-serif" font-size="8.5" font-weight="bold" fill="#B5651D">PK</text>
+<text x="58" y="250" font-family="Tahoma, 'DejaVu Sans', Arial, sans-serif" font-size="10.5" font-weight="bold" fill="#111827">id</text>
+<text x="314" y="250" text-anchor="end" font-family="Tahoma, 'DejaVu Sans', Arial, sans-serif" font-size="9.5" fill="#6B7280">uuid</text>
+<rect x="21" y="254.5" width="298" height="16" fill="#F3F4F6"/>
+<text x="26" y="266" font-family="Tahoma, 'DejaVu Sans', Arial, sans-serif" font-size="8.5" font-weight="bold" fill="#B5651D"></text>
+<text x="58" y="266" font-family="Tahoma, 'DejaVu Sans', Arial, sans-serif" font-size="10.5" fill="#111827">period</text>
+<text x="314" y="266" text-anchor="end" font-family="Tahoma, 'DejaVu Sans', Arial, sans-serif" font-size="9.5" fill="#6B7280">char(7)</text>
+<text x="26" y="282" font-family="Tahoma, 'DejaVu Sans', Arial, sans-serif" font-size="8.5" font-weight="bold" fill="#B5651D">FK</text>
+<text x="58" y="282" font-family="Tahoma, 'DejaVu Sans', Arial, sans-serif" font-size="10.5" fill="#111827">employee_id</text>
+<text x="314" y="282" text-anchor="end" font-family="Tahoma, 'DejaVu Sans', Arial, sans-serif" font-size="9.5" font-style="italic" fill="#6B7280">→ employees</text>
+<rect x="21" y="286.5" width="298" height="16" fill="#F3F4F6"/>
+<text x="26" y="298" font-family="Tahoma, 'DejaVu Sans', Arial, sans-serif" font-size="8.5" font-weight="bold" fill="#B5651D"></text>
+<text x="58" y="298" font-family="Tahoma, 'DejaVu Sans', Arial, sans-serif" font-size="10.5" fill="#111827">field</text>
+<text x="314" y="298" text-anchor="end" font-family="Tahoma, 'DejaVu Sans', Arial, sans-serif" font-size="9.5" fill="#6B7280">varchar(10)</text>
+<text x="26" y="314" font-family="Tahoma, 'DejaVu Sans', Arial, sans-serif" font-size="8.5" font-weight="bold" fill="#B5651D"></text>
+<text x="58" y="314" font-family="Tahoma, 'DejaVu Sans', Arial, sans-serif" font-size="10.5" fill="#111827">old_value</text>
+<text x="314" y="314" text-anchor="end" font-family="Tahoma, 'DejaVu Sans', Arial, sans-serif" font-size="9.5" fill="#6B7280">int unsigned</text>
+<rect x="21" y="318.5" width="298" height="16" fill="#F3F4F6"/>
+<text x="26" y="330" font-family="Tahoma, 'DejaVu Sans', Arial, sans-serif" font-size="8.5" font-weight="bold" fill="#B5651D"></text>
+<text x="58" y="330" font-family="Tahoma, 'DejaVu Sans', Arial, sans-serif" font-size="10.5" fill="#111827">new_value</text>
+<text x="314" y="330" text-anchor="end" font-family="Tahoma, 'DejaVu Sans', Arial, sans-serif" font-size="9.5" fill="#6B7280">int unsigned</text>
+<text x="26" y="346" font-family="Tahoma, 'DejaVu Sans', Arial, sans-serif" font-size="8.5" font-weight="bold" fill="#B5651D"></text>
+<text x="58" y="346" font-family="Tahoma, 'DejaVu Sans', Arial, sans-serif" font-size="10.5" fill="#111827">source</text>
+<text x="314" y="346" text-anchor="end" font-family="Tahoma, 'DejaVu Sans', Arial, sans-serif" font-size="9.5" fill="#6B7280">varchar(10)</text>
+<rect x="21" y="350.5" width="298" height="16" fill="#F3F4F6"/>
+<text x="26" y="362" font-family="Tahoma, 'DejaVu Sans', Arial, sans-serif" font-size="8.5" font-weight="bold" fill="#B5651D">FK</text>
+<text x="58" y="362" font-family="Tahoma, 'DejaVu Sans', Arial, sans-serif" font-size="10.5" fill="#111827">changed_by?</text>
+<text x="314" y="362" text-anchor="end" font-family="Tahoma, 'DejaVu Sans', Arial, sans-serif" font-size="9.5" font-style="italic" fill="#6B7280">→ users</text>
+<rect x="398" y="46" width="300" height="110" rx="4" fill="#FFFFFF" stroke="#B5651D" stroke-width="1.4"/>
+<path d="M398,70 V50 Q398,46 402,46 H694 Q698,46 698,50 V70 Z" fill="#B5651D"/>
+<text x="406" y="62" font-family="Tahoma, 'DejaVu Sans', Arial, sans-serif" font-size="12" font-weight="bold" fill="#FFFFFF">payroll_period_events</text>
+<text x="404" y="82" font-family="Tahoma, 'DejaVu Sans', Arial, sans-serif" font-size="8.5" font-weight="bold" fill="#B5651D">PK</text>
+<text x="436" y="82" font-family="Tahoma, 'DejaVu Sans', Arial, sans-serif" font-size="10.5" font-weight="bold" fill="#111827">id</text>
+<text x="692" y="82" text-anchor="end" font-family="Tahoma, 'DejaVu Sans', Arial, sans-serif" font-size="9.5" fill="#6B7280">uuid</text>
+<rect x="399" y="86.5" width="298" height="16" fill="#F3F4F6"/>
+<text x="404" y="98" font-family="Tahoma, 'DejaVu Sans', Arial, sans-serif" font-size="8.5" font-weight="bold" fill="#B5651D"></text>
+<text x="436" y="98" font-family="Tahoma, 'DejaVu Sans', Arial, sans-serif" font-size="10.5" fill="#111827">period</text>
+<text x="692" y="98" text-anchor="end" font-family="Tahoma, 'DejaVu Sans', Arial, sans-serif" font-size="9.5" fill="#6B7280">char(7)</text>
+<text x="404" y="114" font-family="Tahoma, 'DejaVu Sans', Arial, sans-serif" font-size="8.5" font-weight="bold" fill="#B5651D"></text>
+<text x="436" y="114" font-family="Tahoma, 'DejaVu Sans', Arial, sans-serif" font-size="10.5" fill="#111827">action</text>
+<text x="692" y="114" text-anchor="end" font-family="Tahoma, 'DejaVu Sans', Arial, sans-serif" font-size="9.5" fill="#6B7280">varchar(10)</text>
+<rect x="399" y="118.5" width="298" height="16" fill="#F3F4F6"/>
+<text x="404" y="130" font-family="Tahoma, 'DejaVu Sans', Arial, sans-serif" font-size="8.5" font-weight="bold" fill="#B5651D"></text>
+<text x="436" y="130" font-family="Tahoma, 'DejaVu Sans', Arial, sans-serif" font-size="10.5" fill="#111827">reason?</text>
+<text x="692" y="130" text-anchor="end" font-family="Tahoma, 'DejaVu Sans', Arial, sans-serif" font-size="9.5" fill="#6B7280">text</text>
+<text x="404" y="146" font-family="Tahoma, 'DejaVu Sans', Arial, sans-serif" font-size="8.5" font-weight="bold" fill="#B5651D">FK</text>
+<text x="436" y="146" font-family="Tahoma, 'DejaVu Sans', Arial, sans-serif" font-size="10.5" fill="#111827">created_by?</text>
+<text x="692" y="146" text-anchor="end" font-family="Tahoma, 'DejaVu Sans', Arial, sans-serif" font-size="9.5" font-style="italic" fill="#6B7280">→ users</text>
+<rect x="776" y="46" width="300" height="702" rx="4" fill="#FFFFFF" stroke="#B5651D" stroke-width="1.4"/>
+<path d="M776,70 V50 Q776,46 780,46 H1072 Q1076,46 1076,50 V70 Z" fill="#B5651D"/>
+<text x="784" y="62" font-family="Tahoma, 'DejaVu Sans', Arial, sans-serif" font-size="12" font-weight="bold" fill="#FFFFFF">payroll_snapshot_rows</text>
+<text x="782" y="82" font-family="Tahoma, 'DejaVu Sans', Arial, sans-serif" font-size="8.5" font-weight="bold" fill="#B5651D">PK</text>
+<text x="814" y="82" font-family="Tahoma, 'DejaVu Sans', Arial, sans-serif" font-size="10.5" font-weight="bold" fill="#111827">id</text>
+<text x="1070" y="82" text-anchor="end" font-family="Tahoma, 'DejaVu Sans', Arial, sans-serif" font-size="9.5" fill="#6B7280">uuid</text>
+<rect x="777" y="86.5" width="298" height="16" fill="#F3F4F6"/>
+<text x="782" y="98" font-family="Tahoma, 'DejaVu Sans', Arial, sans-serif" font-size="8.5" font-weight="bold" fill="#B5651D"></text>
+<text x="814" y="98" font-family="Tahoma, 'DejaVu Sans', Arial, sans-serif" font-size="10.5" fill="#111827">period</text>
+<text x="1070" y="98" text-anchor="end" font-family="Tahoma, 'DejaVu Sans', Arial, sans-serif" font-size="9.5" fill="#6B7280">char(7)</text>
+<text x="782" y="114" font-family="Tahoma, 'DejaVu Sans', Arial, sans-serif" font-size="8.5" font-weight="bold" fill="#B5651D">FK</text>
+<text x="814" y="114" font-family="Tahoma, 'DejaVu Sans', Arial, sans-serif" font-size="10.5" fill="#111827">employee_id</text>
+<text x="1070" y="114" text-anchor="end" font-family="Tahoma, 'DejaVu Sans', Arial, sans-serif" font-size="9.5" font-style="italic" fill="#6B7280">→ employees</text>
+<rect x="777" y="118.5" width="298" height="16" fill="#F3F4F6"/>
+<text x="782" y="130" font-family="Tahoma, 'DejaVu Sans', Arial, sans-serif" font-size="8.5" font-weight="bold" fill="#B5651D"></text>
+<text x="814" y="130" font-family="Tahoma, 'DejaVu Sans', Arial, sans-serif" font-size="10.5" fill="#111827">registration_number?</text>
+<text x="1070" y="130" text-anchor="end" font-family="Tahoma, 'DejaVu Sans', Arial, sans-serif" font-size="9.5" fill="#6B7280">varchar(20)</text>
+<text x="782" y="146" font-family="Tahoma, 'DejaVu Sans', Arial, sans-serif" font-size="8.5" font-weight="bold" fill="#B5651D"></text>
+<text x="814" y="146" font-family="Tahoma, 'DejaVu Sans', Arial, sans-serif" font-size="10.5" fill="#111827">name</text>
+<text x="1070" y="146" text-anchor="end" font-family="Tahoma, 'DejaVu Sans', Arial, sans-serif" font-size="9.5" fill="#6B7280">varchar(150)</text>
+<rect x="777" y="150.5" width="298" height="16" fill="#F3F4F6"/>
+<text x="782" y="162" font-family="Tahoma, 'DejaVu Sans', Arial, sans-serif" font-size="8.5" font-weight="bold" fill="#B5651D"></text>
+<text x="814" y="162" font-family="Tahoma, 'DejaVu Sans', Arial, sans-serif" font-size="10.5" fill="#111827">employment_status</text>
+<text x="1070" y="162" text-anchor="end" font-family="Tahoma, 'DejaVu Sans', Arial, sans-serif" font-size="9.5" fill="#6B7280">varchar(30)</text>
+<text x="782" y="178" font-family="Tahoma, 'DejaVu Sans', Arial, sans-serif" font-size="8.5" font-weight="bold" fill="#B5651D"></text>
+<text x="814" y="178" font-family="Tahoma, 'DejaVu Sans', Arial, sans-serif" font-size="10.5" fill="#111827">position?</text>
+<text x="1070" y="178" text-anchor="end" font-family="Tahoma, 'DejaVu Sans', Arial, sans-serif" font-size="9.5" fill="#6B7280">varchar(150)</text>
+<rect x="777" y="182.5" width="298" height="16" fill="#F3F4F6"/>
+<text x="782" y="194" font-family="Tahoma, 'DejaVu Sans', Arial, sans-serif" font-size="8.5" font-weight="bold" fill="#B5651D"></text>
+<text x="814" y="194" font-family="Tahoma, 'DejaVu Sans', Arial, sans-serif" font-size="10.5" fill="#111827">sub_unit_name?</text>
+<text x="1070" y="194" text-anchor="end" font-family="Tahoma, 'DejaVu Sans', Arial, sans-serif" font-size="9.5" fill="#6B7280">varchar(150)</text>
+<text x="782" y="210" font-family="Tahoma, 'DejaVu Sans', Arial, sans-serif" font-size="8.5" font-weight="bold" fill="#B5651D"></text>
+<text x="814" y="210" font-family="Tahoma, 'DejaVu Sans', Arial, sans-serif" font-size="10.5" fill="#111827">afdeling_code?</text>
+<text x="1070" y="210" text-anchor="end" font-family="Tahoma, 'DejaVu Sans', Arial, sans-serif" font-size="9.5" fill="#6B7280">varchar(20)</text>
+<rect x="777" y="214.5" width="298" height="16" fill="#F3F4F6"/>
+<text x="782" y="226" font-family="Tahoma, 'DejaVu Sans', Arial, sans-serif" font-size="8.5" font-weight="bold" fill="#B5651D"></text>
+<text x="814" y="226" font-family="Tahoma, 'DejaVu Sans', Arial, sans-serif" font-size="10.5" fill="#111827">payroll_group_id?</text>
+<text x="1070" y="226" text-anchor="end" font-family="Tahoma, 'DejaVu Sans', Arial, sans-serif" font-size="9.5" fill="#6B7280">uuid</text>
+<text x="782" y="242" font-family="Tahoma, 'DejaVu Sans', Arial, sans-serif" font-size="8.5" font-weight="bold" fill="#B5651D"></text>
+<text x="814" y="242" font-family="Tahoma, 'DejaVu Sans', Arial, sans-serif" font-size="10.5" fill="#111827">payroll_group_name?</text>
+<text x="1070" y="242" text-anchor="end" font-family="Tahoma, 'DejaVu Sans', Arial, sans-serif" font-size="9.5" fill="#6B7280">varchar(100)</text>
+<rect x="777" y="246.5" width="298" height="16" fill="#F3F4F6"/>
+<text x="782" y="258" font-family="Tahoma, 'DejaVu Sans', Arial, sans-serif" font-size="8.5" font-weight="bold" fill="#B5651D"></text>
+<text x="814" y="258" font-family="Tahoma, 'DejaVu Sans', Arial, sans-serif" font-size="10.5" fill="#111827">division_id?</text>
+<text x="1070" y="258" text-anchor="end" font-family="Tahoma, 'DejaVu Sans', Arial, sans-serif" font-size="9.5" fill="#6B7280">uuid</text>
+<text x="782" y="274" font-family="Tahoma, 'DejaVu Sans', Arial, sans-serif" font-size="8.5" font-weight="bold" fill="#B5651D"></text>
+<text x="814" y="274" font-family="Tahoma, 'DejaVu Sans', Arial, sans-serif" font-size="10.5" fill="#111827">division_name?</text>
+<text x="1070" y="274" text-anchor="end" font-family="Tahoma, 'DejaVu Sans', Arial, sans-serif" font-size="9.5" fill="#6B7280">varchar(150)</text>
+<rect x="777" y="278.5" width="298" height="16" fill="#F3F4F6"/>
+<text x="782" y="290" font-family="Tahoma, 'DejaVu Sans', Arial, sans-serif" font-size="8.5" font-weight="bold" fill="#B5651D"></text>
+<text x="814" y="290" font-family="Tahoma, 'DejaVu Sans', Arial, sans-serif" font-size="10.5" fill="#111827">cost_center_id?</text>
+<text x="1070" y="290" text-anchor="end" font-family="Tahoma, 'DejaVu Sans', Arial, sans-serif" font-size="9.5" fill="#6B7280">uuid</text>
+<text x="782" y="306" font-family="Tahoma, 'DejaVu Sans', Arial, sans-serif" font-size="8.5" font-weight="bold" fill="#B5651D"></text>
+<text x="814" y="306" font-family="Tahoma, 'DejaVu Sans', Arial, sans-serif" font-size="10.5" fill="#111827">cost_center_code?</text>
+<text x="1070" y="306" text-anchor="end" font-family="Tahoma, 'DejaVu Sans', Arial, sans-serif" font-size="9.5" fill="#6B7280">varchar(20)</text>
+<rect x="777" y="310.5" width="298" height="16" fill="#F3F4F6"/>
+<text x="782" y="322" font-family="Tahoma, 'DejaVu Sans', Arial, sans-serif" font-size="8.5" font-weight="bold" fill="#B5651D"></text>
+<text x="814" y="322" font-family="Tahoma, 'DejaVu Sans', Arial, sans-serif" font-size="10.5" fill="#111827">cost_center_name?</text>
+<text x="1070" y="322" text-anchor="end" font-family="Tahoma, 'DejaVu Sans', Arial, sans-serif" font-size="9.5" fill="#6B7280">varchar(150)</text>
+<text x="782" y="338" font-family="Tahoma, 'DejaVu Sans', Arial, sans-serif" font-size="8.5" font-weight="bold" fill="#B5651D"></text>
+<text x="814" y="338" font-family="Tahoma, 'DejaVu Sans', Arial, sans-serif" font-size="10.5" fill="#111827">bank_name?</text>
+<text x="1070" y="338" text-anchor="end" font-family="Tahoma, 'DejaVu Sans', Arial, sans-serif" font-size="9.5" fill="#6B7280">varchar(100)</text>
+<rect x="777" y="342.5" width="298" height="16" fill="#F3F4F6"/>
+<text x="782" y="354" font-family="Tahoma, 'DejaVu Sans', Arial, sans-serif" font-size="8.5" font-weight="bold" fill="#B5651D"></text>
+<text x="814" y="354" font-family="Tahoma, 'DejaVu Sans', Arial, sans-serif" font-size="10.5" fill="#111827">account_number?</text>
+<text x="1070" y="354" text-anchor="end" font-family="Tahoma, 'DejaVu Sans', Arial, sans-serif" font-size="9.5" fill="#6B7280">varchar(30)</text>
+<text x="782" y="370" font-family="Tahoma, 'DejaVu Sans', Arial, sans-serif" font-size="8.5" font-weight="bold" fill="#B5651D"></text>
+<text x="814" y="370" font-family="Tahoma, 'DejaVu Sans', Arial, sans-serif" font-size="10.5" fill="#111827">account_name?</text>
+<text x="1070" y="370" text-anchor="end" font-family="Tahoma, 'DejaVu Sans', Arial, sans-serif" font-size="9.5" fill="#6B7280">varchar(150)</text>
+<rect x="777" y="374.5" width="298" height="16" fill="#F3F4F6"/>
+<text x="782" y="386" font-family="Tahoma, 'DejaVu Sans', Arial, sans-serif" font-size="8.5" font-weight="bold" fill="#B5651D"></text>
+<text x="814" y="386" font-family="Tahoma, 'DejaVu Sans', Arial, sans-serif" font-size="10.5" fill="#111827">wage_type?</text>
+<text x="1070" y="386" text-anchor="end" font-family="Tahoma, 'DejaVu Sans', Arial, sans-serif" font-size="9.5" fill="#6B7280">varchar(20)</text>
+<text x="782" y="402" font-family="Tahoma, 'DejaVu Sans', Arial, sans-serif" font-size="8.5" font-weight="bold" fill="#B5651D"></text>
+<text x="814" y="402" font-family="Tahoma, 'DejaVu Sans', Arial, sans-serif" font-size="10.5" fill="#111827">hke</text>
+<text x="1070" y="402" text-anchor="end" font-family="Tahoma, 'DejaVu Sans', Arial, sans-serif" font-size="9.5" fill="#6B7280">tinyint unsigned</text>
+<rect x="777" y="406.5" width="298" height="16" fill="#F3F4F6"/>
+<text x="782" y="418" font-family="Tahoma, 'DejaVu Sans', Arial, sans-serif" font-size="8.5" font-weight="bold" fill="#B5651D"></text>
+<text x="814" y="418" font-family="Tahoma, 'DejaVu Sans', Arial, sans-serif" font-size="10.5" fill="#111827">present_days</text>
+<text x="1070" y="418" text-anchor="end" font-family="Tahoma, 'DejaVu Sans', Arial, sans-serif" font-size="9.5" fill="#6B7280">tinyint unsigned</text>
+<text x="782" y="434" font-family="Tahoma, 'DejaVu Sans', Arial, sans-serif" font-size="8.5" font-weight="bold" fill="#B5651D"></text>
+<text x="814" y="434" font-family="Tahoma, 'DejaVu Sans', Arial, sans-serif" font-size="10.5" fill="#111827">active_days</text>
+<text x="1070" y="434" text-anchor="end" font-family="Tahoma, 'DejaVu Sans', Arial, sans-serif" font-size="9.5" fill="#6B7280">tinyint unsigned</text>
+<rect x="777" y="438.5" width="298" height="16" fill="#F3F4F6"/>
+<text x="782" y="450" font-family="Tahoma, 'DejaVu Sans', Arial, sans-serif" font-size="8.5" font-weight="bold" fill="#B5651D"></text>
+<text x="814" y="450" font-family="Tahoma, 'DejaVu Sans', Arial, sans-serif" font-size="10.5" fill="#111827">calendar_days</text>
+<text x="1070" y="450" text-anchor="end" font-family="Tahoma, 'DejaVu Sans', Arial, sans-serif" font-size="9.5" fill="#6B7280">tinyint unsigned</text>
+<text x="782" y="466" font-family="Tahoma, 'DejaVu Sans', Arial, sans-serif" font-size="8.5" font-weight="bold" fill="#B5651D"></text>
+<text x="814" y="466" font-family="Tahoma, 'DejaVu Sans', Arial, sans-serif" font-size="10.5" fill="#111827">base_salary</text>
+<text x="1070" y="466" text-anchor="end" font-family="Tahoma, 'DejaVu Sans', Arial, sans-serif" font-size="9.5" fill="#6B7280">int unsigned</text>
+<rect x="777" y="470.5" width="298" height="16" fill="#F3F4F6"/>
+<text x="782" y="482" font-family="Tahoma, 'DejaVu Sans', Arial, sans-serif" font-size="8.5" font-weight="bold" fill="#B5651D"></text>
+<text x="814" y="482" font-family="Tahoma, 'DejaVu Sans', Arial, sans-serif" font-size="10.5" fill="#111827">daily_rate</text>
+<text x="1070" y="482" text-anchor="end" font-family="Tahoma, 'DejaVu Sans', Arial, sans-serif" font-size="9.5" fill="#6B7280">int unsigned</text>
+<text x="782" y="498" font-family="Tahoma, 'DejaVu Sans', Arial, sans-serif" font-size="8.5" font-weight="bold" fill="#B5651D"></text>
+<text x="814" y="498" font-family="Tahoma, 'DejaVu Sans', Arial, sans-serif" font-size="10.5" fill="#111827">cap_days?</text>
+<text x="1070" y="498" text-anchor="end" font-family="Tahoma, 'DejaVu Sans', Arial, sans-serif" font-size="9.5" fill="#6B7280">tinyint unsigned</text>
+<rect x="777" y="502.5" width="298" height="16" fill="#F3F4F6"/>
+<text x="782" y="514" font-family="Tahoma, 'DejaVu Sans', Arial, sans-serif" font-size="8.5" font-weight="bold" fill="#B5651D"></text>
+<text x="814" y="514" font-family="Tahoma, 'DejaVu Sans', Arial, sans-serif" font-size="10.5" fill="#111827">base_pay</text>
+<text x="1070" y="514" text-anchor="end" font-family="Tahoma, 'DejaVu Sans', Arial, sans-serif" font-size="9.5" fill="#6B7280">int unsigned</text>
+<text x="782" y="530" font-family="Tahoma, 'DejaVu Sans', Arial, sans-serif" font-size="8.5" font-weight="bold" fill="#B5651D"></text>
+<text x="814" y="530" font-family="Tahoma, 'DejaVu Sans', Arial, sans-serif" font-size="10.5" fill="#111827">regular_overtime_pay</text>
+<text x="1070" y="530" text-anchor="end" font-family="Tahoma, 'DejaVu Sans', Arial, sans-serif" font-size="9.5" fill="#6B7280">int unsigned</text>
+<rect x="777" y="534.5" width="298" height="16" fill="#F3F4F6"/>
+<text x="782" y="546" font-family="Tahoma, 'DejaVu Sans', Arial, sans-serif" font-size="8.5" font-weight="bold" fill="#B5651D"></text>
+<text x="814" y="546" font-family="Tahoma, 'DejaVu Sans', Arial, sans-serif" font-size="10.5" fill="#111827">dw_overtime_pay</text>
+<text x="1070" y="546" text-anchor="end" font-family="Tahoma, 'DejaVu Sans', Arial, sans-serif" font-size="9.5" fill="#6B7280">int unsigned</text>
+<text x="782" y="562" font-family="Tahoma, 'DejaVu Sans', Arial, sans-serif" font-size="8.5" font-weight="bold" fill="#B5651D"></text>
+<text x="814" y="562" font-family="Tahoma, 'DejaVu Sans', Arial, sans-serif" font-size="10.5" fill="#111827">overtime_pay</text>
+<text x="1070" y="562" text-anchor="end" font-family="Tahoma, 'DejaVu Sans', Arial, sans-serif" font-size="9.5" fill="#6B7280">int unsigned</text>
+<rect x="777" y="566.5" width="298" height="16" fill="#F3F4F6"/>
+<text x="782" y="578" font-family="Tahoma, 'DejaVu Sans', Arial, sans-serif" font-size="8.5" font-weight="bold" fill="#B5651D"></text>
+<text x="814" y="578" font-family="Tahoma, 'DejaVu Sans', Arial, sans-serif" font-size="10.5" fill="#111827">operational_allowance</text>
+<text x="1070" y="578" text-anchor="end" font-family="Tahoma, 'DejaVu Sans', Arial, sans-serif" font-size="9.5" fill="#6B7280">int unsigned</text>
+<text x="782" y="594" font-family="Tahoma, 'DejaVu Sans', Arial, sans-serif" font-size="8.5" font-weight="bold" fill="#B5651D"></text>
+<text x="814" y="594" font-family="Tahoma, 'DejaVu Sans', Arial, sans-serif" font-size="10.5" fill="#111827">incentive</text>
+<text x="1070" y="594" text-anchor="end" font-family="Tahoma, 'DejaVu Sans', Arial, sans-serif" font-size="9.5" fill="#6B7280">int unsigned</text>
+<rect x="777" y="598.5" width="298" height="16" fill="#F3F4F6"/>
+<text x="782" y="610" font-family="Tahoma, 'DejaVu Sans', Arial, sans-serif" font-size="8.5" font-weight="bold" fill="#B5651D"></text>
+<text x="814" y="610" font-family="Tahoma, 'DejaVu Sans', Arial, sans-serif" font-size="10.5" fill="#111827">meal_allowance</text>
+<text x="1070" y="610" text-anchor="end" font-family="Tahoma, 'DejaVu Sans', Arial, sans-serif" font-size="9.5" fill="#6B7280">int unsigned</text>
+<text x="782" y="626" font-family="Tahoma, 'DejaVu Sans', Arial, sans-serif" font-size="8.5" font-weight="bold" fill="#B5651D"></text>
+<text x="814" y="626" font-family="Tahoma, 'DejaVu Sans', Arial, sans-serif" font-size="10.5" fill="#111827">gross</text>
+<text x="1070" y="626" text-anchor="end" font-family="Tahoma, 'DejaVu Sans', Arial, sans-serif" font-size="9.5" fill="#6B7280">int unsigned</text>
+<rect x="777" y="630.5" width="298" height="16" fill="#F3F4F6"/>
+<text x="782" y="642" font-family="Tahoma, 'DejaVu Sans', Arial, sans-serif" font-size="8.5" font-weight="bold" fill="#B5651D"></text>
+<text x="814" y="642" font-family="Tahoma, 'DejaVu Sans', Arial, sans-serif" font-size="10.5" fill="#111827">bpjs</text>
+<text x="1070" y="642" text-anchor="end" font-family="Tahoma, 'DejaVu Sans', Arial, sans-serif" font-size="9.5" fill="#6B7280">int unsigned</text>
+<text x="782" y="658" font-family="Tahoma, 'DejaVu Sans', Arial, sans-serif" font-size="8.5" font-weight="bold" fill="#B5651D"></text>
+<text x="814" y="658" font-family="Tahoma, 'DejaVu Sans', Arial, sans-serif" font-size="10.5" fill="#111827">pph21</text>
+<text x="1070" y="658" text-anchor="end" font-family="Tahoma, 'DejaVu Sans', Arial, sans-serif" font-size="9.5" fill="#6B7280">int unsigned</text>
+<rect x="777" y="662.5" width="298" height="16" fill="#F3F4F6"/>
+<text x="782" y="674" font-family="Tahoma, 'DejaVu Sans', Arial, sans-serif" font-size="8.5" font-weight="bold" fill="#B5651D"></text>
+<text x="814" y="674" font-family="Tahoma, 'DejaVu Sans', Arial, sans-serif" font-size="10.5" fill="#111827">unit</text>
+<text x="1070" y="674" text-anchor="end" font-family="Tahoma, 'DejaVu Sans', Arial, sans-serif" font-size="9.5" fill="#6B7280">int unsigned</text>
+<text x="782" y="690" font-family="Tahoma, 'DejaVu Sans', Arial, sans-serif" font-size="8.5" font-weight="bold" fill="#B5651D"></text>
+<text x="814" y="690" font-family="Tahoma, 'DejaVu Sans', Arial, sans-serif" font-size="10.5" fill="#111827">deductions_total</text>
+<text x="1070" y="690" text-anchor="end" font-family="Tahoma, 'DejaVu Sans', Arial, sans-serif" font-size="9.5" fill="#6B7280">int unsigned</text>
+<rect x="777" y="694.5" width="298" height="16" fill="#F3F4F6"/>
+<text x="782" y="706" font-family="Tahoma, 'DejaVu Sans', Arial, sans-serif" font-size="8.5" font-weight="bold" fill="#B5651D"></text>
+<text x="814" y="706" font-family="Tahoma, 'DejaVu Sans', Arial, sans-serif" font-size="10.5" fill="#111827">net</text>
+<text x="1070" y="706" text-anchor="end" font-family="Tahoma, 'DejaVu Sans', Arial, sans-serif" font-size="9.5" fill="#6B7280">int</text>
+<text x="782" y="722" font-family="Tahoma, 'DejaVu Sans', Arial, sans-serif" font-size="8.5" font-weight="bold" fill="#B5651D"></text>
+<text x="814" y="722" font-family="Tahoma, 'DejaVu Sans', Arial, sans-serif" font-size="10.5" fill="#111827">warnings?</text>
+<text x="1070" y="722" text-anchor="end" font-family="Tahoma, 'DejaVu Sans', Arial, sans-serif" font-size="9.5" fill="#6B7280">text</text>
+<rect x="777" y="726.5" width="298" height="16" fill="#F3F4F6"/>
+<text x="782" y="738" font-family="Tahoma, 'DejaVu Sans', Arial, sans-serif" font-size="8.5" font-weight="bold" fill="#B5651D"></text>
+<text x="814" y="738" font-family="Tahoma, 'DejaVu Sans', Arial, sans-serif" font-size="10.5" fill="#111827">dw_status?</text>
+<text x="1070" y="738" text-anchor="end" font-family="Tahoma, 'DejaVu Sans', Arial, sans-serif" font-size="9.5" fill="#6B7280">varchar(20)</text>
+<rect x="776" y="774" width="300" height="222" rx="4" fill="#FFFFFF" stroke="#B5651D" stroke-width="1.4"/>
+<path d="M776,798 V778 Q776,774 780,774 H1072 Q1076,774 1076,778 V798 Z" fill="#B5651D"/>
+<text x="784" y="790" font-family="Tahoma, 'DejaVu Sans', Arial, sans-serif" font-size="12" font-weight="bold" fill="#FFFFFF">payroll_snapshot_signers</text>
+<text x="782" y="810" font-family="Tahoma, 'DejaVu Sans', Arial, sans-serif" font-size="8.5" font-weight="bold" fill="#B5651D">PK</text>
+<text x="814" y="810" font-family="Tahoma, 'DejaVu Sans', Arial, sans-serif" font-size="10.5" font-weight="bold" fill="#111827">id</text>
+<text x="1070" y="810" text-anchor="end" font-family="Tahoma, 'DejaVu Sans', Arial, sans-serif" font-size="9.5" fill="#6B7280">uuid</text>
+<rect x="777" y="814.5" width="298" height="16" fill="#F3F4F6"/>
+<text x="782" y="826" font-family="Tahoma, 'DejaVu Sans', Arial, sans-serif" font-size="8.5" font-weight="bold" fill="#B5651D"></text>
+<text x="814" y="826" font-family="Tahoma, 'DejaVu Sans', Arial, sans-serif" font-size="10.5" fill="#111827">period</text>
+<text x="1070" y="826" text-anchor="end" font-family="Tahoma, 'DejaVu Sans', Arial, sans-serif" font-size="9.5" fill="#6B7280">char(7)</text>
+<text x="782" y="842" font-family="Tahoma, 'DejaVu Sans', Arial, sans-serif" font-size="8.5" font-weight="bold" fill="#B5651D"></text>
+<text x="814" y="842" font-family="Tahoma, 'DejaVu Sans', Arial, sans-serif" font-size="10.5" fill="#111827">owner_type</text>
+<text x="1070" y="842" text-anchor="end" font-family="Tahoma, 'DejaVu Sans', Arial, sans-serif" font-size="9.5" fill="#6B7280">varchar(20)</text>
+<rect x="777" y="846.5" width="298" height="16" fill="#F3F4F6"/>
+<text x="782" y="858" font-family="Tahoma, 'DejaVu Sans', Arial, sans-serif" font-size="8.5" font-weight="bold" fill="#B5651D"></text>
+<text x="814" y="858" font-family="Tahoma, 'DejaVu Sans', Arial, sans-serif" font-size="10.5" fill="#111827">owner_id?</text>
+<text x="1070" y="858" text-anchor="end" font-family="Tahoma, 'DejaVu Sans', Arial, sans-serif" font-size="9.5" fill="#6B7280">uuid</text>
+<text x="782" y="874" font-family="Tahoma, 'DejaVu Sans', Arial, sans-serif" font-size="8.5" font-weight="bold" fill="#B5651D"></text>
+<text x="814" y="874" font-family="Tahoma, 'DejaVu Sans', Arial, sans-serif" font-size="10.5" fill="#111827">place</text>
+<text x="1070" y="874" text-anchor="end" font-family="Tahoma, 'DejaVu Sans', Arial, sans-serif" font-size="9.5" fill="#6B7280">varchar(100)</text>
+<rect x="777" y="878.5" width="298" height="16" fill="#F3F4F6"/>
+<text x="782" y="890" font-family="Tahoma, 'DejaVu Sans', Arial, sans-serif" font-size="8.5" font-weight="bold" fill="#B5651D"></text>
+<text x="814" y="890" font-family="Tahoma, 'DejaVu Sans', Arial, sans-serif" font-size="10.5" fill="#111827">document</text>
+<text x="1070" y="890" text-anchor="end" font-family="Tahoma, 'DejaVu Sans', Arial, sans-serif" font-size="9.5" fill="#6B7280">varchar(20)</text>
+<text x="782" y="906" font-family="Tahoma, 'DejaVu Sans', Arial, sans-serif" font-size="8.5" font-weight="bold" fill="#B5651D"></text>
+<text x="814" y="906" font-family="Tahoma, 'DejaVu Sans', Arial, sans-serif" font-size="10.5" fill="#111827">inherited</text>
+<text x="1070" y="906" text-anchor="end" font-family="Tahoma, 'DejaVu Sans', Arial, sans-serif" font-size="9.5" fill="#6B7280">boolean</text>
+<rect x="777" y="910.5" width="298" height="16" fill="#F3F4F6"/>
+<text x="782" y="922" font-family="Tahoma, 'DejaVu Sans', Arial, sans-serif" font-size="8.5" font-weight="bold" fill="#B5651D"></text>
+<text x="814" y="922" font-family="Tahoma, 'DejaVu Sans', Arial, sans-serif" font-size="10.5" fill="#111827">section_order</text>
+<text x="1070" y="922" text-anchor="end" font-family="Tahoma, 'DejaVu Sans', Arial, sans-serif" font-size="9.5" fill="#6B7280">smallint unsigned</text>
+<text x="782" y="938" font-family="Tahoma, 'DejaVu Sans', Arial, sans-serif" font-size="8.5" font-weight="bold" fill="#B5651D"></text>
+<text x="814" y="938" font-family="Tahoma, 'DejaVu Sans', Arial, sans-serif" font-size="10.5" fill="#111827">section_label</text>
+<text x="1070" y="938" text-anchor="end" font-family="Tahoma, 'DejaVu Sans', Arial, sans-serif" font-size="9.5" fill="#6B7280">varchar(100)</text>
+<rect x="777" y="942.5" width="298" height="16" fill="#F3F4F6"/>
+<text x="782" y="954" font-family="Tahoma, 'DejaVu Sans', Arial, sans-serif" font-size="8.5" font-weight="bold" fill="#B5651D"></text>
+<text x="814" y="954" font-family="Tahoma, 'DejaVu Sans', Arial, sans-serif" font-size="10.5" fill="#111827">signer_order</text>
+<text x="1070" y="954" text-anchor="end" font-family="Tahoma, 'DejaVu Sans', Arial, sans-serif" font-size="9.5" fill="#6B7280">smallint unsigned</text>
+<text x="782" y="970" font-family="Tahoma, 'DejaVu Sans', Arial, sans-serif" font-size="8.5" font-weight="bold" fill="#B5651D"></text>
+<text x="814" y="970" font-family="Tahoma, 'DejaVu Sans', Arial, sans-serif" font-size="10.5" fill="#111827">name</text>
+<text x="1070" y="970" text-anchor="end" font-family="Tahoma, 'DejaVu Sans', Arial, sans-serif" font-size="9.5" fill="#6B7280">varchar(150)</text>
+<rect x="777" y="974.5" width="298" height="16" fill="#F3F4F6"/>
+<text x="782" y="986" font-family="Tahoma, 'DejaVu Sans', Arial, sans-serif" font-size="8.5" font-weight="bold" fill="#B5651D"></text>
+<text x="814" y="986" font-family="Tahoma, 'DejaVu Sans', Arial, sans-serif" font-size="10.5" fill="#111827">position</text>
+<text x="1070" y="986" text-anchor="end" font-family="Tahoma, 'DejaVu Sans', Arial, sans-serif" font-size="9.5" fill="#6B7280">varchar(150)</text>
+</svg>

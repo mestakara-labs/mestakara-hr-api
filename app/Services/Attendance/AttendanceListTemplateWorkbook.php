@@ -5,6 +5,7 @@ namespace App\Services\Attendance;
 use App\Enums\AttendanceCode;
 use App\Enums\AttendanceImportType;
 use App\Services\Employee\EmployeeExportWorkbook;
+use App\Support\DocumentStyle;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 use PhpOffice\PhpSpreadsheet\Cell\Coordinate;
@@ -54,8 +55,6 @@ class AttendanceListTemplateWorkbook
 
     public const INACTIVE_FILL = 'BFBFBF';
 
-    private const FONT = 'Tahoma';
-
     /**
      * @param  Collection<string, PeriodEmployee>  $employees
      * @param  array<string, array<string, string>>  $codes  [id karyawan][tanggal] => kode tersimpan
@@ -64,7 +63,7 @@ class AttendanceListTemplateWorkbook
     public function write(AttendancePeriod $period, Collection $employees, array $codes, array $holidays): string
     {
         $spreadsheet = new Spreadsheet;
-        $spreadsheet->getDefaultStyle()->getFont()->setName(self::FONT)->setSize(10);
+        $spreadsheet->getDefaultStyle()->getFont()->setName(DocumentStyle::FONT)->setSize(DocumentStyle::FONT_SIZE);
         $sheet = $spreadsheet->getActiveSheet()->setTitle(AttendanceListLayout::SHEET_TITLE);
 
         $dates = $period->dates();
@@ -82,6 +81,7 @@ class AttendanceListTemplateWorkbook
         $this->addCodeColors($sheet, $lastDate, $lastRow);
         $this->writeListSheet($spreadsheet, $period);
         $this->writeGuideSheet($spreadsheet);
+        TemplateRecapSheet::attendanceList($spreadsheet, $period, $employees);   // sheet ke-2, sesudah sheet data
 
         // Tombol filter & urut di baris filter; baris data tidak dikunci supaya bisa diurutkan,
         // judul (baris 1–4) tetap dikunci. Pencocokan karyawan tetap memakai ID Sistem di tiap baris.

@@ -30,13 +30,14 @@ class PayrollData
         public readonly SignatureBook $signatures,
     ) {}
 
-    public static function load(AttendancePeriod $period): self
+    /** @param  PayrollCalculator|null  $calculator  kirim instance yang sama untuk banyak bulan supaya data karyawan dimuat sekali */
+    public static function load(AttendancePeriod $period, ?PayrollCalculator $calculator = null): self
     {
         if ($period->isLocked()) {
             return new self($period, true, self::snapshotRows($period->period), SignatureBook::fromSnapshot($period->period));
         }
 
-        return new self($period, false, app(PayrollCalculator::class)->rows($period), SignatureBook::live());
+        return new self($period, false, ($calculator ?? app(PayrollCalculator::class))->rows($period), SignatureBook::live());
     }
 
     /** @return array<string, array<string, mixed>> */

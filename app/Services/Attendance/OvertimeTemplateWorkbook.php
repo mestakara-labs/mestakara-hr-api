@@ -6,6 +6,7 @@ use App\Enums\AttendanceImportType;
 use App\Models\OvertimeEntry;
 use App\Models\OvertimeSetting;
 use App\Services\Employee\EmployeeExportWorkbook;
+use App\Support\DocumentStyle;
 use Illuminate\Support\Collection;
 use PhpOffice\PhpSpreadsheet\Cell\Coordinate;
 use PhpOffice\PhpSpreadsheet\Cell\DataType;
@@ -37,8 +38,6 @@ use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
  */
 class OvertimeTemplateWorkbook
 {
-    private const FONT = 'Tahoma';
-
     /** Latar kolom yang terisi otomatis (rumus). */
     private const FORMULA_FILL = 'F2F2F2';
 
@@ -49,7 +48,7 @@ class OvertimeTemplateWorkbook
     public function write(AttendancePeriod $period, AttendanceImportType $type, Collection $employees, Collection $entries): string
     {
         $spreadsheet = new Spreadsheet;
-        $spreadsheet->getDefaultStyle()->getFont()->setName(self::FONT)->setSize(10);
+        $spreadsheet->getDefaultStyle()->getFont()->setName(DocumentStyle::FONT)->setSize(DocumentStyle::FONT_SIZE);
         $sheet = $spreadsheet->getActiveSheet()->setTitle(OvertimeLayout::sheetTitle($type));
 
         $first = OvertimeLayout::FIRST_DATA_ROW;
@@ -63,6 +62,7 @@ class OvertimeTemplateWorkbook
         $this->writeDataSheet($spreadsheet, $employees);
         $this->writeListSheet($spreadsheet, $period, $type);
         $this->writeGuideSheet($spreadsheet, $type);
+        TemplateRecapSheet::overtime($spreadsheet, $period, OvertimeLayout::sheetTitle($type), $employees);   // sheet ke-2
 
         $sheet->setAutoFilter('A'.OvertimeLayout::FILTER_ROW.":{$lastColumn}{$lastRow}");
         $sheet->freezePane(Coordinate::stringFromColumnIndex(Coordinate::columnIndexFromString(OvertimeLayout::LAST_FROZEN_COLUMN) + 1).$first);

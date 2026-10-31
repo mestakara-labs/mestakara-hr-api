@@ -5,6 +5,7 @@ namespace App\Services\Attendance;
 use App\Enums\EmploymentStatus;
 use App\Models\Employee;
 use App\Services\EmployeeStatusService;
+use Illuminate\Database\Eloquent\Collection as EloquentCollection;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 
@@ -20,7 +21,24 @@ class AttendanceEmployees
         'wageSchemes.payrollGroup', 'costCenterHistories.costCenter',
     ];
 
+    /** Lihat reuseLoadedEmployees(). */
+    private bool $reuseEmployees = false;
+
+    /** @var EloquentCollection<int, Employee>|null */
+    private ?EloquentCollection $dailyWageEmployees = null;
+
     public function __construct(private EmployeeStatusService $statusService) {}
+
+    /**
+     * Muat karyawan Casual & DW SEKALI lalu pakai ulang untuk setiap periode. Hanya untuk pembacaan banyak bulan
+     * sekaligus dalam satu permintaan (dashboard); bawaannya dimuat ulang setiap kali supaya tidak memakai data basi.
+     */
+    public function reuseLoadedEmployees(): static
+    {
+        $this->reuseEmployees = true;
+
+        return $this;
+    }
 
     /**
      * Semua karyawan yang dihitung, urut nama, dikunci dengan id karyawan.
@@ -29,11 +47,18 @@ class AttendanceEmployees
      */
     public function forPeriod(AttendancePeriod $period): Collection
     {
-        return Employee::query()
+        $employees = $this->reuseEmployees ? $this->dailyWageEmployees : null;
+        $employees ??= Employee::query()
             ->with(self::RELATIONS)
             ->whereIn('employment_status', EmploymentStatus::dailyWageValues())
             ->orderBy('name')
-            ->get()
+            ->get();
+        if ($this->reuseEmployees) {
+            $this->dailyWageEmployees = $employees;
+        }
+
+        return $employees
+            ->toBase()
             ->map(fn (Employee $employee) => $this->make($employee, $period))
             ->filter(fn (PeriodEmployee $item) => $item->activeDates() !== [])
             ->keyBy(fn (PeriodEmployee $item) => $item->employee->id);

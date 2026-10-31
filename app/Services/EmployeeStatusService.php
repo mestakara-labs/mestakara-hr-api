@@ -107,18 +107,23 @@ class EmployeeStatusService
      */
     public function activeDatesBetween(Employee $employee, Carbon $from, Carbon $to): array
     {
-        $events = $this->events($employee, $to);
+        // Dibandingkan sebagai teks "YYYY-MM-DD" (urutannya sama dengan urutan tanggal) supaya cepat untuk ratusan karyawan.
+        $events = array_map(
+            fn (array $event) => ['date' => $event['date']->toDateString(), 'is_active' => $event['is_active']],
+            $this->events($employee, $to),
+        );
         $dates = [];
         $index = 0;
         $isActive = false;
+        $last = $to->toDateString();
 
-        for ($date = $from->copy()->startOfDay(); $date->lessThanOrEqualTo($to); $date->addDay()) {
-            while (isset($events[$index]) && $events[$index]['date']->lessThanOrEqualTo($date)) {
+        for ($date = $from->toDateString(); $date <= $last; $date = date('Y-m-d', strtotime($date.' +1 day'))) {
+            while (isset($events[$index]) && $events[$index]['date'] <= $date) {
                 $isActive = $events[$index]['is_active'];
                 $index++;
             }
             if ($isActive) {
-                $dates[] = $date->toDateString();
+                $dates[] = $date;
             }
         }
 

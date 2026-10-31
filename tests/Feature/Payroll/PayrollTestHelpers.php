@@ -19,8 +19,8 @@ use Tests\Feature\Attendance\AttendanceTestHelpers;
  *
  *   Ani   Harian, Gaji Pokok 2.600.000 / HKE 26 (Rp/hari 100.000), dibatasi 20 hari, uang makan 10.000/hari,
  *         Ops & Jab 50.000, Insentif 25.000, kelompok "Gunung Mas", bidang "Bidang Tanaman", rekening & cost center.
- *         K 22 hari -> dibayar 20 = 2.000.000; uang makan 220.000; lembur reguler 2 jam = 52.600 (tarif 15.029)
- *         -> Jumlah 2.347.600
+ *         K 22 hari (melebihi batas = peringatan saja) -> 22 × 100.000 = 2.200.000; uang makan 220.000;
+ *         lembur reguler 2 jam = 52.600 (tarif 15.029) -> Jumlah 2.547.600
  *   Budi  Flat Bulanan 3.100.000, kelompok "Petugas Parkir", tanpa jabatan (Tanpa Bidang), nonaktif mulai 16 Okt
  *         -> aktif 15 hari -> round(3.100.000 × 15 ÷ 31) = 1.500.000
  *   Cici  tanpa skema -> semua 0, Tanpa Kelompok & Tanpa Bidang

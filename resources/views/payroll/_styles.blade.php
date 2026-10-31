@@ -1,6 +1,7 @@
 {{-- Gaya bersama PDF Daftar Upah & SPKL (dompdf). --}}
 <style>
-    body { font-family: "DejaVu Sans", sans-serif; font-size: 7pt; color: #000; }
+    {{-- Font bawaan semua dokumen: Tahoma 11 (App\Support\DocumentStyle); DejaVu Sans kalau Tahoma tidak ada di server. --}}
+    body { font-family: "{{ \App\Support\DocumentStyle::FONT }}", "DejaVu Sans", sans-serif; font-size: {{ \App\Support\DocumentStyle::FONT_SIZE }}pt; color: #000; }
     .page { page-break-after: always; }
     .page:last-child { page-break-after: auto; }
     .watermark {
@@ -11,7 +12,7 @@
     .head { width: 100%; border-collapse: collapse; margin-bottom: 4px; }
     .head td { vertical-align: top; padding: 0; }
     .company { font-weight: bold; }
-    .title { text-align: center; font-weight: bold; font-size: 10pt; }
+    .title { text-align: center; font-weight: bold; font-size: 12pt; }
     .right { text-align: right; }
     .center { text-align: center; }
     .bold { font-weight: bold; }
@@ -28,6 +29,6 @@
     .place-date { text-align: right !important; padding-right: 20px !important; padding-bottom: 4px !important; }
     .signers { width: 100%; border-collapse: collapse; }
     .signature-label { margin-bottom: 2px; }
-    .signing-space { height: 45px; }
+    .signing-space { height: 75px; }
     .signer-name { font-weight: bold; text-decoration: underline; }
 </style>

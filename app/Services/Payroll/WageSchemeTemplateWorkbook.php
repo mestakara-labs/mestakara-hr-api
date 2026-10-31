@@ -4,6 +4,7 @@ namespace App\Services\Payroll;
 
 use App\Enums\EmploymentStatus;
 use App\Services\Employee\EmployeeExportWorkbook;
+use App\Support\DocumentStyle;
 use DateTimeInterface;
 use PhpOffice\PhpSpreadsheet\Cell\DataType;
 use PhpOffice\PhpSpreadsheet\Cell\DataValidation;
@@ -31,10 +32,6 @@ use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
  */
 class WageSchemeTemplateWorkbook
 {
-    private const FONT = 'Tahoma';
-
-    private const FONT_SIZE = 10;
-
     /** Latar sel yang dikunci (info) dan kolom skema upah karyawan Tetap / PKWT. */
     private const LOCKED_GREY = 'F2F2F2';
 
@@ -54,7 +51,7 @@ class WageSchemeTemplateWorkbook
     public function write(array $rows, array $lists): string
     {
         $spreadsheet = new Spreadsheet;
-        $spreadsheet->getDefaultStyle()->getFont()->setName(self::FONT)->setSize(self::FONT_SIZE);
+        $spreadsheet->getDefaultStyle()->getFont()->setName(DocumentStyle::FONT)->setSize(DocumentStyle::FONT_SIZE);
 
         $sheet = $spreadsheet->getActiveSheet();
         $sheet->setTitle(WageSchemeTemplateColumns::SHEET_TITLE);

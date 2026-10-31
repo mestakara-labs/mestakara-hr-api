@@ -2,6 +2,8 @@
 
 namespace App\Services\Payroll;
 
+use App\Support\DocumentStyle;
+use App\Support\ExcelColumnFit;
 use PhpOffice\PhpSpreadsheet\Cell\Coordinate;
 use PhpOffice\PhpSpreadsheet\Cell\DataType;
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
@@ -25,8 +27,6 @@ use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
  */
 class PayrollExportWorkbook
 {
-    private const FONT = 'Arial Narrow';
-
     private const MONEY_FORMAT = '#,##0';
 
     private const HEADER_FILL = 'D9E1F2';
@@ -38,13 +38,13 @@ class PayrollExportWorkbook
     private const LIST_HEADER_ROW = 6;
 
     /** Jarak baris nama dari baris jabatan (ruang tanda tangan). */
-    private const SIGNING_SPACE_ROWS = 5;
+    private const SIGNING_SPACE_ROWS = 8;
 
     /** @param  array<string, mixed>  $document  hasil PayrollExportDocument::build */
     public function write(array $document): string
     {
         $spreadsheet = new Spreadsheet;
-        $spreadsheet->getDefaultStyle()->getFont()->setName(self::FONT)->setSize(10);
+        $spreadsheet->getDefaultStyle()->getFont()->setName(DocumentStyle::FONT)->setSize(DocumentStyle::FONT_SIZE);
         $spreadsheet->removeSheetByIndex(0);
 
         foreach ($document['sheets'] as $sheetData) {
@@ -99,26 +99,27 @@ class PayrollExportWorkbook
         // Judul kolom dua tingkat.
         $top = self::GROUP_HEADER_ROW;
         $bottom = $top + 1;
-        $previousTop = null;
-        $mergeStart = null;
+        $groupSpans = [];   // judul atas bersama => [kolom awal, kolom akhir]; digabung SEKALI (gabungan bertumpuk merusak file)
         foreach ($columns as $index => [, $topTitle, $subTitle]) {
             $letter = Coordinate::stringFromColumnIndex($index + 1);
             if ($subTitle === null) {
                 $sheet->setCellValue("{$letter}{$top}", $topTitle);
                 $sheet->mergeCells("{$letter}{$top}:{$letter}{$bottom}");
-                $previousTop = null;
 
                 continue;
             }
 
             $sheet->setCellValue("{$letter}{$bottom}", $subTitle);
-            if ($topTitle !== $previousTop) {
+            if (! isset($groupSpans[$topTitle])) {
                 $sheet->setCellValue("{$letter}{$top}", $topTitle);
-                $mergeStart = $letter;
-            } else {
-                $sheet->mergeCells("{$mergeStart}{$top}:{$letter}{$top}");
+                $groupSpans[$topTitle] = [$letter, $letter];
             }
-            $previousTop = $topTitle;
+            $groupSpans[$topTitle][1] = $letter;
+        }
+        foreach ($groupSpans as [$from, $to]) {
+            if ($from !== $to) {
+                $sheet->mergeCells("{$from}{$top}:{$to}{$top}");
+            }
         }
         $this->styleHeader($sheet, "A{$top}:{$lastColumn}{$bottom}");
 
@@ -138,7 +139,13 @@ class PayrollExportWorkbook
                 $sheet->setCellValue(Coordinate::stringFromColumnIndex($index + 1).$totalRow, $data['totals'][$key]);
             }
         }
-        $this->styleTable($sheet, $bottom + 1, $totalRow, $lastColumn, array_map(fn (array $column) => $column[4], $columns));
+        $this->styleTable($sheet, $bottom + 1, $totalRow, $lastColumn, array_map(fn (array $column) => $column[4], $columns), ['C']);
+        // Lebar kolom mengikuti tulisan terpanjang (satu baris); Nama, Jabatan & Uraian cost center boleh berlipat.
+        $wrapColumns = ['C' => DocumentStyle::NAME_COLUMN_WIDTH, 'D' => 26, 'F' => 26];
+        foreach (array_keys($wrapColumns) as $letter) {
+            $sheet->getStyle($letter.($bottom + 1).":{$letter}{$totalRow}")->getAlignment()->setWrapText(true);
+        }
+        ExcelColumnFit::apply($sheet, $top, $totalRow, $wrapColumns);
 
         $this->writeSignature($sheet, $data['signature'], $totalRow + 2, count($columns));
         $this->setupPage($sheet, PageSetup::ORIENTATION_LANDSCAPE, $top, $bottom);
@@ -160,7 +167,7 @@ class PayrollExportWorkbook
     private function writePayroll(Worksheet $sheet, array $data, array $document): void
     {
         $this->writeListTitle($sheet, 'PAYROLL '.PayrollExportDocument::TITLE, $document, count(PayrollExportDocument::PAYROLL_COLUMNS));
-        $this->writeList($sheet, PayrollExportDocument::PAYROLL_COLUMNS, $data, 'F');
+        $this->writeList($sheet, PayrollExportDocument::PAYROLL_COLUMNS, $data, 'F', ['name', 'account_name']);
         $this->setupPage($sheet, PageSetup::ORIENTATION_PORTRAIT, self::LIST_HEADER_ROW, self::LIST_HEADER_ROW);
         $sheet->freezePane('D'.(self::LIST_HEADER_ROW + 1));
     }
@@ -184,8 +191,9 @@ class PayrollExportWorkbook
      * Tabel satu tingkat judul + JUMLAH (label digabung sampai kolom $labelUntil). Mengembalikan nomor baris JUMLAH.
      *
      * @param  list<array{0: string, 1: string, 2: int, 3: bool}>  $columns
+     * @param  list<string>  $nameKeys  kolom nama orang: sempit, berlipat, rata kiri
      */
-    private function writeList(Worksheet $sheet, array $columns, array $data, string $labelUntil): int
+    private function writeList(Worksheet $sheet, array $columns, array $data, string $labelUntil, array $nameKeys = []): int
     {
         $lastColumn = Coordinate::stringFromColumnIndex(count($columns));
         $this->setWidths($sheet, array_map(fn (array $column) => $column[2], $columns));
@@ -211,7 +219,20 @@ class PayrollExportWorkbook
                 $sheet->setCellValue(Coordinate::stringFromColumnIndex($index + 1).$rowNumber, $data['totals'][$key]);
             }
         }
-        $this->styleTable($sheet, $header + 1, $rowNumber, $lastColumn, array_map(fn (array $column) => $column[3], $columns));
+        $nameLetters = [];
+        foreach ($columns as $index => [$key]) {
+            if (in_array($key, $nameKeys, true)) {
+                $nameLetters[] = Coordinate::stringFromColumnIndex($index + 1);
+            }
+        }
+        $this->styleTable($sheet, $header + 1, $rowNumber, $lastColumn, array_map(fn (array $column) => $column[3], $columns), $nameLetters);
+        // Lebar kolom mengikuti tulisan terpanjang (satu baris); kolom nama (Nama / Atas Nama / Uraian) berlipat.
+        $wrapColumns = [];
+        foreach ($nameLetters as $letter) {
+            $wrapColumns[$letter] = DocumentStyle::NAME_COLUMN_WIDTH;
+            $sheet->getStyle($letter.($header + 1).":{$letter}{$rowNumber}")->getAlignment()->setWrapText(true);
+        }
+        ExcelColumnFit::apply($sheet, $header, $rowNumber, $wrapColumns);
 
         return $rowNumber;
     }
@@ -303,11 +324,24 @@ class PayrollExportWorkbook
     }
 
     /** @param  list<bool>  $isMoney */
-    private function styleTable(Worksheet $sheet, int $firstRow, int $totalRow, string $lastColumn, array $isMoney): void
+    /**
+     * Garis, baris JUMLAH tebal, format rupiah, dan perataan: semua isi rata tengah, KECUALI kolom nama
+     * (rata kiri dengan jarak dari garis).
+     *
+     * @param  list<bool>  $isMoney
+     * @param  list<string>  $nameLetters  kolom nama (Nama / Atas Nama)
+     */
+    private function styleTable(Worksheet $sheet, int $firstRow, int $totalRow, string $lastColumn, array $isMoney, array $nameLetters): void
     {
         $sheet->getStyle("A{$firstRow}:{$lastColumn}{$totalRow}")->getBorders()->getAllBorders()->setBorderStyle(Border::BORDER_THIN);
+        $sheet->getStyle("A{$firstRow}:{$lastColumn}{$totalRow}")->getAlignment()
+            ->setHorizontal(Alignment::HORIZONTAL_CENTER)
+            ->setVertical(Alignment::VERTICAL_CENTER);   // baris bisa tinggi kalau nama berlipat
+        foreach ($nameLetters as $letter) {
+            $sheet->getStyle("{$letter}{$firstRow}:{$letter}".($totalRow - 1))->getAlignment()
+                ->setHorizontal(Alignment::HORIZONTAL_LEFT)->setIndent(1);
+        }
         $sheet->getStyle("A{$totalRow}:{$lastColumn}{$totalRow}")->getFont()->setBold(true);
-        $sheet->getStyle("A{$totalRow}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
 
         foreach ($isMoney as $index => $money) {
             if ($money) {
@@ -320,7 +354,7 @@ class PayrollExportWorkbook
     private function setupPage(Worksheet $sheet, string $orientation, int $repeatFrom, int $repeatTo): void
     {
         $setup = $sheet->getPageSetup();
-        $setup->setOrientation($orientation)->setPaperSize(PageSetup::PAPERSIZE_A4);
+        $setup->setOrientation($orientation)->setPaperSize(PageSetup::PAPERSIZE_FOLIO);   // F4 (8,5 × 13 inci)
         $setup->setFitToWidth(1)->setFitToHeight(0);
         $setup->setRowsToRepeatAtTopByStartAndEnd($repeatFrom, $repeatTo);
         $sheet->getPageMargins()->setLeft(0.3)->setRight(0.3)->setTop(0.4)->setBottom(0.4);

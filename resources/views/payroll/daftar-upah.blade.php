@@ -1,11 +1,15 @@
 {{--
-    PDF Daftar Upah (A4 landscape). Isi dari App\Services\Payroll\PayrollExportDocument — sama persis dengan Excel.
+    PDF Daftar Upah (F4 landscape). Isi dari App\Services\Payroll\PayrollExportDocument — sama persis dengan Excel.
     Setiap sheet = halaman baru; judul kolom diulang di setiap halaman; blok tanda tangan tidak terpotong.
+    Supaya 21 kolom muat di F4, seluruh tata letak DIPERKECIL ($scale × ukuran Tahoma 11); isi sel satu baris,
+    hanya Nama, Jabatan, Uraian cost center, dan judul kolom yang panjang yang boleh berlipat.
 --}}
 @use('App\Services\Payroll\PayrollExportDocument')
 @use('App\Services\Payroll\PayrollExportText')
 @php
     $money = fn ($value) => PayrollExportText::rupiah((int) $value);
+    $scale = 0.65;
+    $pt = fn (float $size) => round($size * $scale, 2).'pt';
 @endphp
 <!doctype html>
 <html lang="id">
@@ -13,6 +17,21 @@
     <meta charset="utf-8">
     <title>{{ PayrollExportDocument::TITLE }} - {{ $document['month_label'] }}</title>
     @include('payroll._styles')
+    <style>
+        @page { margin: 24px 24px; }
+        body { font-size: {{ $pt(11) }}; }
+        .title { font-size: {{ $pt(12) }}; }
+        .draft-mark { font-size: {{ $pt(11) }}; }
+        table.data th { padding: 1px 2px; }
+        table.data td { padding: 1px 2px; white-space: nowrap; }
+        table.data td.wrap { white-space: normal; min-width: 60pt; }
+        {{-- Kolom nama dibuat sempit (tidak dominan); nama yang panjang berlipat ke bawah. --}}
+        table.data td.name { white-space: normal; width: 80pt; text-align: left; padding: 1px 5px; }
+        {{-- Semua isi rata tengah, kecuali kolom nama. --}}
+        table.data td, table.data td.num { text-align: center; }
+        table.data td.name { text-align: left; }
+        .signing-space { height: 60px; }
+    </style>
 </head>
 <body>
 @if ($document['is_draft'])
@@ -79,7 +98,7 @@
                     <tr>
                         @foreach (PayrollExportDocument::GROUP_COLUMNS as [$key, $top, $sub])
                             @if ($sub !== null)
-                                <th>{{ $sub }}</th>
+                                <th>{!! nl2br(e($sub)) !!}</th>{{-- "\n" di judul = pindah baris --}}
                             @endif
                         @endforeach
                     </tr>
@@ -88,7 +107,7 @@
                     @foreach ($sheet['rows'] as $row)
                         <tr>
                             @foreach (PayrollExportDocument::GROUP_COLUMNS as [$key, , , , $isMoney])
-                                <td class="{{ $isMoney || in_array($key, ['no', 'hke', 'present_days'], true) ? 'num' : '' }}">{{ $isMoney ? $money($row[$key]) : $row[$key] }}</td>
+                                <td class="{{ $isMoney || in_array($key, ['no', 'hke', 'present_days'], true) ? 'num' : (in_array($key, ['position', 'cost_center_name'], true) ? 'wrap' : ($key === 'name' ? 'name' : '')) }}">{{ $isMoney ? $money($row[$key]) : $row[$key] }}</td>
                             @endforeach
                         </tr>
                     @endforeach
@@ -109,7 +128,7 @@
                 <thead>
                     <tr>
                         @foreach ($columns as [, $title])
-                            <th>{{ $title }}</th>
+                            <th>{!! nl2br(e($title)) !!}</th>
                         @endforeach
                     </tr>
                 </thead>
@@ -117,7 +136,7 @@
                     @foreach ($sheet['rows'] as $row)
                         <tr>
                             @foreach ($columns as [$key, , , $isMoney])
-                                <td class="{{ $isMoney || is_int($row[$key]) ? 'num' : '' }}">{{ $isMoney ? $money($row[$key]) : $row[$key] }}</td>
+                                <td class="{{ $isMoney || is_int($row[$key]) ? 'num' : ($sheet['type'] === 'payroll' && in_array($key, ['name', 'account_name'], true) ? 'name' : '') }}">{{ $isMoney ? $money($row[$key]) : $row[$key] }}</td>
                             @endforeach
                         </tr>
                     @endforeach

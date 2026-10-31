@@ -24,6 +24,7 @@ class PayrollExportDocument
     /**
      * Kolom sheet kelompok, urut kiri ke kanan: [kunci baris, judul atas, judul bawah (null = digabung 2 baris), lebar, rupiah?].
      * Judul atas yang sama berturut-turut digabung menjadi satu (mis. "HARI KERJA" di atas HKE & Absen).
+     * "\n" di judul = pindah baris (mis. "PPIP\n/PPh.Ps.21").
      */
     public const GROUP_COLUMNS = [
         ['no', 'No', null, 5, false],
@@ -43,8 +44,8 @@ class PayrollExportDocument
         ['meal_allowance', 'Tunjangan', 'Uang Makan', 12, true],
         ['gross', 'Jml. Upah & Tunjangan', null, 14, true],
         ['bpjs', 'Potongan', 'BPJS TK/KES', 12, true],
-        ['pph21', 'Potongan', 'PPIP/PPh.Ps.21', 12, true],
-        ['unit', 'Potongan', 'Kebun/Unit', 12, true],
+        ['pph21', 'Potongan', "PPIP\n/PPh.Ps.21", 12, true],
+        ['unit', 'Potongan', "Kebun\n/Unit", 12, true],
         ['deductions_total', 'Jumlah Potongan', null, 13, true],
         ['net', 'Upah di Terima', null, 14, true],
     ];
@@ -66,7 +67,7 @@ class PayrollExportDocument
         ['gross', 'Jml Upah', 14, true],
         ['bpjs', 'BPJS', 12, true],
         ['pph21', 'PPIP', 12, true],
-        ['unit', 'Kebun/Unit', 12, true],
+        ['unit', "Kebun\n/Unit", 12, true],
         ['deductions_total', 'Jumlah Potongan', 13, true],
         ['net', 'Upah di terima', 14, true],
     ];

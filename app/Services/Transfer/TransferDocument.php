@@ -4,6 +4,7 @@ namespace App\Services\Transfer;
 
 use App\Models\Transfer;
 use App\Models\TransferItem;
+use App\Support\DocumentStyle;
 use App\Support\SimplePdf;
 use Illuminate\Support\Carbon;
 
@@ -93,7 +94,7 @@ class TransferDocument
         }
 
         return '<html xmlns:w="urn:schemas-microsoft-com:office:word"><head><meta charset="utf-8"/>'
-            .'<style>body{font-family:Arial;font-size:11pt}table{border-collapse:collapse;width:100%}td,th{border:1px solid #000;padding:4px}</style>'
+            .'<style>body{font-family:'.DocumentStyle::FONT.';font-size:'.DocumentStyle::FONT_SIZE.'pt}table{border-collapse:collapse;width:100%}td,th{border:1px solid #000;padding:4px}</style>'
             .'</head><body>'
             .'<h2 style="text-align:center">'.$escape($title).'</h2>'
             .'<p style="text-align:center">Nomor: '.$escape($transfer->decree_number).'<br/>Tentang: '.$escape($transfer->type->value).' Karyawan</p>'
@@ -101,7 +102,7 @@ class TransferDocument
             .'<p>Menetapkan perubahan jabatan berikut, berlaku mulai '.$escape($this->formatDate($transfer->effective_date)).':</p>'
             .'<table><tr><th>No</th><th>Nama / NIK</th><th>Jabatan Lama</th><th>Jabatan Baru</th><th>Sub Unit / Objek</th></tr>'.$rows.'</table>'
             .'<p>Ditetapkan tanggal '.$escape($this->formatDate($transfer->decree_date)).'</p>'
-            .'<p><br/><br/><br/>'.$escape($this->signerLine($transfer)).'</p>'
+            .'<p><br/><br/><br/><br/><br/><br/>'.$escape($this->signerLine($transfer)).'</p>'
             .'<p style="color:#888;font-size:9pt">Dokumen sementara. Template resmi menyusul.</p>'
             .'</body></html>';
     }

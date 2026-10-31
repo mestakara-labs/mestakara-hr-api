@@ -3,7 +3,6 @@
 namespace App\Services\Employee;
 
 use App\Enums\EducationLevel;
-use App\Enums\EmploymentStatus;
 use App\Enums\FamilyRelationship;
 use App\Enums\Gender;
 use App\Models\Employee;
@@ -25,11 +24,6 @@ use Illuminate\Support\Collection;
  */
 class EmployeeExportService
 {
-    /** Usia pensiun (sama dengan aplikasi): karpim BRM-1 s.d. BRM-3 = 56 tahun, karpel BRM-4 s.d. BRM-6 = 55 tahun. */
-    private const RETIREMENT_AGE_KARPIM = 56;
-
-    private const RETIREMENT_AGE_KARPEL = 55;
-
     /** Riwayat jabatan sebelumnya yang dicantumkan: [kolom nama jabatan, kolom TMT, kolom lama menjabat]. */
     private const PREVIOUS_POSITION_COLUMNS = [
         ['CL', 'CM', 'CN'],
@@ -147,7 +141,7 @@ class EmployeeExportService
             // --- Pendidikan terakhir & pensiun ---------------------------------------
             'AD' => $highestEducation?->level,
             'AE' => $this->upper($highestEducation?->major),
-            'AI' => $this->retirementDate($employee, $main),
+            'AI' => $employee->retirementDate($main),
 
             // --- Kontak ----------------------------------------------------------------
             'AU' => $employee->ktp_number,
@@ -264,21 +258,6 @@ class EmployeeExportService
     private function educations(Employee $employee): Collection
     {
         return collect($employee->educationsFromHighest());
-    }
-
-    /**
-     * Tanggal pensiun = tanggal lahir + usia pensiun. Hanya karyawan Tetap yang sudah ditempatkan
-     * (sama dengan aplikasi: belum ditempatkan -> belum ditampilkan).
-     */
-    private function retirementDate(Employee $employee, ?PositionAssignment $main): ?Carbon
-    {
-        if ($employee->employment_status !== EmploymentStatus::Permanent->value || $employee->birth_date === null || $main === null) {
-            return null;
-        }
-
-        $retirementAge = $main->position->brm_level <= 3 ? self::RETIREMENT_AGE_KARPIM : self::RETIREMENT_AGE_KARPEL;
-
-        return $employee->birth_date->copy()->addYearsNoOverflow($retirementAge);
     }
 
     /** Komoditi dari sub unit jabatan utama (lihat COMMODITY_BY_AFDELING). */

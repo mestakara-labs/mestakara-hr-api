@@ -51,6 +51,11 @@ class Employee extends Model
     /** Isian wajib saat disimpan sebagai draf. */
     public const DRAFT_REQUIRED_FIELDS = ['name', 'employment_status'];
 
+    /** Usia pensiun karpim (BRM-1 s.d. BRM-3) & karpel (BRM-4 s.d. BRM-6). */
+    public const RETIREMENT_AGE_KARPIM = 56;
+
+    public const RETIREMENT_AGE_KARPEL = 55;
+
     protected function casts(): array
     {
         return [
@@ -183,6 +188,19 @@ class Employee extends Model
     public function wageSchemeOn(Carbon $date): ?EmployeeWageScheme
     {
         return EffectiveRecords::on($this->wageSchemes, $date);
+    }
+
+    /**
+     * Tanggal pensiun = tanggal lahir + usia pensiun (karpim BRM-1 s.d. BRM-3 = 56, karpel BRM-4 s.d. BRM-6 = 55).
+     * Hanya karyawan Tetap yang sudah ditempatkan & tanggal lahirnya terisi; selain itu null.
+     */
+    public function retirementDate(?PositionAssignment $main): ?Carbon
+    {
+        if ($this->employment_status !== EmploymentStatus::Permanent->value || $this->birth_date === null || $main === null) {
+            return null;
+        }
+
+        return $this->birth_date->copy()->addYearsNoOverflow($main->position->brm_level <= 3 ? self::RETIREMENT_AGE_KARPIM : self::RETIREMENT_AGE_KARPEL);
     }
 
     /** Karyawan Casual / Daily Worker (memakai skema upah)? */

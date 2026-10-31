@@ -18,7 +18,7 @@ use Illuminate\Database\Eloquent\Collection;
  *
  *   Absen (present_days)  = jumlah kode K
  *   Gaji Upah (base_pay)
- *     Harian        = min(K, batas hari kalau dibatasi) × Rp/hari          (K > batas = peringatan)
+ *     Harian        = K × Rp/hari (TIDAK dibatasi; K > batas hari skema = peringatan saja)
  *     Flat Bulanan  = Gaji Pokok; kalau hari aktif < hari kalender: round(Gaji Pokok × hari aktif ÷ hari kalender)
  *   Lembur          = lembur reguler + lembur DW (per tanggal, aturan Pengaturan Lembur, lihat DwPay)
  *   Uang Makan      = K × uang makan/hari (kalau skema memakai uang makan)
@@ -79,8 +79,7 @@ class PayrollCalculator
             $capDays = $item->capDays();
 
             if ($scheme->wage_type === WageType::Daily) {
-                $paidDays = $capDays === null ? $presentDays : min($presentDays, $capDays);
-                $amounts['base_pay'] = $paidDays * $scheme->dailyRate();
+                $amounts['base_pay'] = $presentDays * $scheme->dailyRate();
             } else {
                 $amounts['base_pay'] = $activeDays < $calendarDays
                     ? (int) round($scheme->base_salary * $activeDays / $calendarDays)
@@ -88,7 +87,7 @@ class PayrollCalculator
             }
 
             if ($capDays !== null && $presentDays > $capDays) {
-                $warnings[] = "K {$presentDays} melebihi batas {$capDays} hari; yang dibayar {$capDays}";
+                $warnings[] = "K {$presentDays} melebihi batas {$capDays} hari";
             }
 
             $amounts['regular_overtime_pay'] = $pay->payForEntries($scheme, $summary['regular_overtime']);

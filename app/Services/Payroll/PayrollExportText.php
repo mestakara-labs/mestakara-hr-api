@@ -6,6 +6,7 @@ use App\Enums\PayrollGroupBy;
 use App\Enums\PayrollPeriodStatus;
 use App\Models\PayrollPeriod;
 use App\Support\DataPeriod;
+use App\Support\DocumentStyle;
 use Illuminate\Support\Carbon;
 use Illuminate\Validation\ValidationException;
 
@@ -14,7 +15,7 @@ use Illuminate\Validation\ValidationException;
  */
 class PayrollExportText
 {
-    public const COMPANY = 'PT PERKEBUNAN NUSANTARA I REGIONAL 2';
+    public const COMPANY = DocumentStyle::COMPANY;
 
     public const UNIT = 'UNIT AGROWISATA';
 

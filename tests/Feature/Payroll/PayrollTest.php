@@ -40,16 +40,16 @@ class PayrollTest extends TestCase
 
         $this->assertSame([
             'wage_type' => 'Harian', 'hke' => 26, 'present_days' => 22, 'active_days' => 31, 'calendar_days' => 31,
-            'base_salary' => 2_600_000, 'daily_rate' => 100_000, 'cap_days' => 20, 'base_pay' => 2_000_000,
+            'base_salary' => 2_600_000, 'daily_rate' => 100_000, 'cap_days' => 20, 'base_pay' => 2_200_000,
             'regular_overtime_pay' => 52_600, 'dw_overtime_pay' => 0, 'overtime_pay' => 52_600,
             'operational_allowance' => 50_000, 'incentive' => 25_000, 'meal_allowance' => 220_000,
-            'gross' => 2_347_600, 'deductions_total' => 0, 'net' => 2_347_600,
+            'gross' => 2_547_600, 'deductions_total' => 0, 'net' => 2_547_600,
         ], array_intersect_key($ani, array_flip([
             'wage_type', 'hke', 'present_days', 'active_days', 'calendar_days', 'base_salary', 'daily_rate', 'cap_days',
             'base_pay', 'regular_overtime_pay', 'dw_overtime_pay', 'overtime_pay', 'operational_allowance', 'incentive',
             'meal_allowance', 'gross', 'deductions_total', 'net',
         ])));
-        $this->assertSame(['K 22 melebihi batas 20 hari; yang dibayar 20'], $ani['warnings']);
+        $this->assertSame(['K 22 melebihi batas 20 hari'], $ani['warnings']);
         $this->assertSame('Pemandu Wisata', $ani['position']);
         $this->assertSame(['name' => 'Kebun Gunung Mas', 'afdeling_code' => '01'], $ani['sub_unit']);
         $this->assertSame(['name' => 'Gunung Mas'], array_intersect_key($ani['payroll_group'], ['name' => 1]));
@@ -84,10 +84,10 @@ class PayrollTest extends TestCase
 
         $this->assertSame(['Gunung Mas', 'Petugas Parkir', 'Tanpa Kelompok'], array_column($data['groups'], 'name'));
         $this->assertSame(3, array_sum(array_column($data['groups'], 'employee_count')));
-        $this->assertSame(['employees' => 3, 'gross' => 3_847_600, 'deductions' => 0, 'net' => 3_847_600], $data['summary']);
+        $this->assertSame(['employees' => 3, 'gross' => 4_047_600, 'deductions' => 0, 'net' => 4_047_600], $data['summary']);
         $this->assertSame([['name' => 'Kebun Gunung Mas', 'afdeling_code' => '01']], $data['groups'][0]['sub_units']);
         $this->assertSame(['place' => 'Gunung Mas', 'uses_general_payroll' => true, 'uses_general_spkl' => true], $data['groups'][0]['signature']);
-        $this->assertSame(2_347_600, $data['groups'][0]['totals']['gross']);
+        $this->assertSame(2_547_600, $data['groups'][0]['totals']['gross']);
         $this->assertSame(['without_scheme' => 1, 'without_bank_account' => 2, 'without_cost_center' => 2, 'without_payroll_group' => 1,
             'without_division' => 2, 'attendance_uploaded' => true, 'dw_not_matched' => 0, 'k_over_cap' => 1], $data['readiness']);
         $this->assertSame(['period' => '2026-10', 'status' => 'draf', 'locked_at' => null, 'locked_by' => null, 'can_lock' => true, 'lock_history' => []],
@@ -113,7 +113,7 @@ class PayrollTest extends TestCase
         $rows = $this->payrollRows();
         $this->assertSame(['bpjs' => 50_000, 'pph21' => 5_000, 'unit' => 10_000], $rows['Ani']['deductions']);
         $this->assertSame(65_000, $rows['Ani']['deductions_total']);
-        $this->assertSame(2_282_600, $rows['Ani']['net']);
+        $this->assertSame(2_482_600, $rows['Ani']['net']);
         $this->assertSame(['bpjs' => 0, 'pph21' => 5_000, 'unit' => 0], $rows['Budi']['deductions']);
         $this->assertSame(4, PayrollDeductionChange::count());   // Ani: bpjs, unit, pph21 · Budi: pph21
     }
@@ -171,8 +171,8 @@ class PayrollTest extends TestCase
         $ani = collect($data['rows'])->firstWhere('employee_id', $this->ani->id);
         $this->assertSame('Ani', $ani['name']);
         $this->assertSame('Gunung Mas', $ani['payroll_group']['name']);
-        $this->assertSame(2_347_600, $ani['gross']);
-        $this->assertSame(['K 22 melebihi batas 20 hari; yang dibayar 20'], $ani['warnings']);
+        $this->assertSame(2_547_600, $ani['gross']);
+        $this->assertSame(['K 22 melebihi batas 20 hari'], $ani['warnings']);
         $this->assertSame('Gunung Mas', $data['groups'][0]['name']);
         $this->assertFalse($data['can_lock']);
         $this->assertSame('kunci', $data['lock_history'][0]['action']);

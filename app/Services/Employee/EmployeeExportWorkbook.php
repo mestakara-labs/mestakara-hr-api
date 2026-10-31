@@ -2,6 +2,7 @@
 
 namespace App\Services\Employee;
 
+use App\Support\DocumentStyle;
 use DateTimeInterface;
 use PhpOffice\PhpSpreadsheet\Cell\DataType;
 use PhpOffice\PhpSpreadsheet\Shared\Date as ExcelDate;
@@ -32,13 +33,6 @@ class EmployeeExportWorkbook
 
     public const FILTER_GREY = 'D9D9D9';
 
-    private const FONT = 'Tahoma';
-
-    private const FONT_SIZE = 11;
-
-    /** Font bawaan workbook (sel di luar tabel). */
-    private const DEFAULT_FONT = 'Aptos Narrow';
-
     /** Baris tempat tombol filter Excel (di bawah header). */
     private const FILTER_ROW = 3;
 
@@ -60,7 +54,7 @@ class EmployeeExportWorkbook
     public function write(array $rows): string
     {
         $spreadsheet = new Spreadsheet;
-        $spreadsheet->getDefaultStyle()->getFont()->setName(self::DEFAULT_FONT)->setSize(self::FONT_SIZE);
+        $spreadsheet->getDefaultStyle()->getFont()->setName(DocumentStyle::FONT)->setSize(DocumentStyle::FONT_SIZE);
 
         $sheet = $spreadsheet->getActiveSheet();
         $sheet->setTitle(self::SHEET_TITLE);
@@ -108,7 +102,7 @@ class EmployeeExportWorkbook
         $this->mergeHeaders($sheet, $columns);
 
         $header = $sheet->getStyle("A1:{$lastColumn}2");
-        $header->getFont()->setName(self::FONT)->setSize(self::FONT_SIZE)->setBold(false)->getColor()->setRGB('FFFFFF');
+        $header->getFont()->setName(DocumentStyle::FONT)->setSize(DocumentStyle::FONT_SIZE)->setBold(false)->getColor()->setRGB('FFFFFF');
         $header->getAlignment()
             ->setHorizontal(Alignment::HORIZONTAL_CENTER)
             ->setVertical(Alignment::VERTICAL_CENTER)
@@ -167,7 +161,7 @@ class EmployeeExportWorkbook
     private function styleFilterRow(Worksheet $sheet, string $lastColumn): void
     {
         $filterRow = $sheet->getStyle('A'.self::FILTER_ROW.":{$lastColumn}".self::FILTER_ROW);
-        $filterRow->getFont()->setName(self::FONT)->setSize(self::FONT_SIZE);
+        $filterRow->getFont()->setName(DocumentStyle::FONT)->setSize(DocumentStyle::FONT_SIZE);
         $filterRow->getBorders()->getAllBorders()->setBorderStyle(Border::BORDER_THIN);
         $filterRow->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setRGB(self::FILTER_GREY);
 
@@ -223,7 +217,7 @@ class EmployeeExportWorkbook
             $isCentered = $column['center'] || $column['format'] === EmployeeExportColumns::DATE;
 
             $sheet->getStyle($range)->applyFromArray([
-                'font' => ['name' => self::FONT, 'size' => self::FONT_SIZE, 'color' => ['rgb' => '000000']],
+                'font' => ['name' => DocumentStyle::FONT, 'size' => DocumentStyle::FONT_SIZE, 'color' => ['rgb' => '000000']],
                 'alignment' => [
                     'vertical' => Alignment::VERTICAL_CENTER,
                     'horizontal' => $isCentered ? Alignment::HORIZONTAL_CENTER : Alignment::HORIZONTAL_GENERAL,

@@ -82,7 +82,7 @@ class AttendanceImportTest extends TestCase
         $sheet = $spreadsheet->getSheetByName('Daftar Hadir');
         $date = fn (int $day, int $row) => AttendanceListLayout::dateLetter($day).$row;
 
-        $this->assertSame(['Daftar Hadir', 'Petunjuk', 'Daftar'], $spreadsheet->getSheetNames());
+        $this->assertSame(['Daftar Hadir', 'Rekap', 'Petunjuk', 'Daftar'], $spreadsheet->getSheetNames());
         $this->assertStringContainsString('Periode: Oktober 2026', $sheet->getCell('A1')->getValue());
         $this->assertSame(
             ['No', 'No. Registrasi', 'Nama', 'Jabatan', 'Status', 'Sub Unit', 'Kode Afd', 'Objek Penempatan', 'Kelompok Upah', 'Cost Center', 'Uraian Cost Center'],
@@ -178,7 +178,7 @@ class AttendanceImportTest extends TestCase
         $sheet = $spreadsheet->getSheetByName('Lembur Reguler');
         $data = $spreadsheet->getSheetByName('Data Karyawan');
 
-        $this->assertSame(['Lembur Reguler', 'Petunjuk', 'Data Karyawan', 'Daftar'], $spreadsheet->getSheetNames());
+        $this->assertSame(['Lembur Reguler', 'Rekap', 'Petunjuk', 'Data Karyawan', 'Daftar'], $spreadsheet->getSheetNames());
 
         // Kolom identitas sama dengan template daftar hadir (terisi otomatis), lalu kolom lembur.
         $this->assertSame(

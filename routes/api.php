@@ -24,6 +24,8 @@ use App\Http\Controllers\Api\V1\Attendance\EmployeeAttendanceController;
 use App\Http\Controllers\Api\V1\Attendance\OvertimeDwController;
 use App\Http\Controllers\Api\V1\Attendance\OvertimeEntryController;
 use App\Http\Controllers\Api\V1\Auth\AuthController;
+use App\Http\Controllers\Api\V1\Dashboard\AnalyticsController;
+use App\Http\Controllers\Api\V1\Dashboard\DashboardController;
 use App\Http\Controllers\Api\V1\Employee\EmployeeController;
 use App\Http\Controllers\Api\V1\Employee\EmployeeExportController;
 use App\Http\Controllers\Api\V1\Employee\EmployeeFileController;
@@ -72,6 +74,13 @@ Route::middleware('auth:sanctum')->group(function () {
     // --- Akun login -------------------------------------------------------
     Route::get('/me', [AuthController::class, 'me']);
     Route::post('/logout', [AuthController::class, 'logout']);
+
+    // --- Dashboard ------------------------------------------------------------
+    Route::get('/dashboard', [DashboardController::class, 'index']);
+    Route::get('/dashboard/filter-options', [DashboardController::class, 'filterOptions']);
+    Route::get('/dashboard/widgets/{key}', [DashboardController::class, 'widget']);
+    Route::get('/analytics', [AnalyticsController::class, 'index']);
+    Route::get('/analytics/export', [AnalyticsController::class, 'export']);
 
     // --- Organisasi & Jabatan ----------------------------------------------
     // apiResource = 5 route: GET daftar, POST tambah, GET detail, PUT ubah, DELETE hapus.

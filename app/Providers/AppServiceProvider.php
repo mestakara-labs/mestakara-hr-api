@@ -2,6 +2,9 @@
 
 namespace App\Providers;
 
+use App\Services\Dashboard\AttendanceMonths;
+use App\Services\Dashboard\PayrollMonths;
+use App\Services\Dashboard\WorkforceFacts;
 use App\Support\ApiDocumentation;
 use Dedoc\Scramble\Scramble;
 use Illuminate\Support\ServiceProvider;
@@ -13,7 +16,10 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
-        //
+        // Dashboard: data karyawan & Daftar Upah per bulan dihitung SEKALI per request, dipakai bersama semua widget.
+        $this->app->scoped(WorkforceFacts::class);
+        $this->app->scoped(PayrollMonths::class);
+        $this->app->scoped(AttendanceMonths::class);
     }
 
     /**

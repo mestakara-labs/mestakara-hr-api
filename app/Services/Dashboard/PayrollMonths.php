@@ -7,8 +7,6 @@ use App\Services\Attendance\AttendancePeriod;
 use App\Services\Attendance\AttendanceSummaryService;
 use App\Services\Payroll\PayrollCalculator;
 use App\Services\Payroll\PayrollData;
-use Illuminate\Support\Carbon;
-use ReflectionClass;
 
 /**
  * ANGKA UPAH PER BULAN untuk dashboard & analitik — SUMBERNYA SAMA dengan Daftar Upah (PayrollData: periode dikunci
@@ -16,7 +14,7 @@ use ReflectionClass;
  * tanggal acuan bulan itu (untuk filter & dimensi selain bidang / kelompok / cost center, yang diambil dari baris).
  *
  * Satu bulan dihitung SEKALI per permintaan (memo); data karyawan dimuat sekali (PayrollCalculator yang sama).
- * Daftarkan sebagai scoped binding (lihat AppServiceProvider).
+ * Satu instance per permintaan (lihat AppServiceProvider::onePerRequest()).
  */
 class PayrollMonths
 {
@@ -45,8 +43,8 @@ class PayrollMonths
         AttendanceSummaryService $summaryService,
         private WorkforceFacts $workforce,
     ) {
-        // Karyawan Casual & DW dimuat sekali untuk semua bulan dalam permintaan ini.
-        $this->calculator = new PayrollCalculator($attendanceEmployees->reuseLoadedEmployees(), $summaryService);
+        // Karyawan dimuat sekali (WorkforceFacts) dan dipakai untuk semua bulan dalam permintaan ini.
+        $this->calculator = new PayrollCalculator($attendanceEmployees->useEmployees($workforce->employees()), $summaryService);
     }
 
     /**
@@ -58,10 +56,11 @@ class PayrollMonths
     {
         if (! isset($this->rowsByMonth[$month])) {
             $period = new AttendancePeriod($month);
-            $date = $period->referenceDate();
+            $rows = PayrollData::load($period, $this->calculator)->rows;
+            $facts = $this->workforce->forEmployees($period->referenceDate(), array_keys($rows));
             $items = [];
-            foreach (PayrollData::load($period, $this->calculator)->rows as $employeeId => $row) {
-                $items[] = ['month' => $month, 'row' => $row, 'facts' => $this->lazyFacts($date, $employeeId)];
+            foreach ($rows as $employeeId => $row) {
+                $items[] = ['month' => $month, 'row' => $row, 'facts' => $facts[$employeeId]];
             }
             $this->rowsByMonth[$month] = $items;
         }
@@ -80,17 +79,6 @@ class PayrollMonths
     public function range(DashboardPeriod $period, DashboardFilters $filters): array
     {
         return array_merge(...array_map(fn (string $month) => $this->month($month, $filters), $period->months()) ?: [[]]);
-    }
-
-    /**
-     * Fakta karyawan yang baru DIHITUNG saat pertama dipakai (filter / dimensi). Total upah tanpa filter, mis. KPI
-     * rentang pembanding, jadi tidak perlu menghitung fakta sama sekali.
-     */
-    private function lazyFacts(Carbon $date, string $employeeId): EmployeeFacts
-    {
-        return (new ReflectionClass(EmployeeFacts::class))->newLazyProxy(
-            fn () => $this->workforce->forEmployees($date, [$employeeId])[$employeeId],
-        );
     }
 
     /** Nilai satu komponen dari baris datar Daftar Upah (lihat COMPONENTS). */

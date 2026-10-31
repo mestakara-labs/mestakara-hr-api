@@ -73,7 +73,7 @@ class WorkforceWidgets
         $groups = array_map(fn (array $group) => ['key' => '', 'label' => $group[1], 'value' => 0], self::TENURE_GROUPS);
         foreach ($now as $facts) {
             foreach (self::TENURE_GROUPS as $groupKey => [$maxYears]) {
-                if ($facts->serviceMonths() < $maxYears * 12) {
+                if ($facts->serviceMonths < $maxYears * 12) {
                     $groups[$groupKey]['value']++;
                     break;
                 }
@@ -211,6 +211,6 @@ class WorkforceWidgets
     /** @param  array<string, EmployeeFacts>  $facts */
     private function averageTenure(array $facts): float
     {
-        return $facts === [] ? 0.0 : round(array_sum(array_map(fn (EmployeeFacts $item) => $item->serviceMonths(), $facts)) / count($facts) / 12, 1);
+        return $facts === [] ? 0.0 : round(array_sum(array_map(fn (EmployeeFacts $item) => $item->serviceMonths, $facts)) / count($facts) / 12, 1);
     }
 }

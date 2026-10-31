@@ -16,17 +16,17 @@ use Symfony\Component\HttpFoundation\BinaryFileResponse;
  *
  *   GET /analytics?topic=payroll&metric=net&group_by=division&split_by=employment_status&from=&to=&filters[..][]=
  *   GET /analytics/export?(isian sama)   -> file .xlsx "Analitik SDM - <Topik> per <Dimensi> - <Jan – Okt 2026>.xlsx"
+ *
+ * Service diterima per method (bukan lewat constructor) supaya hasil hitungan tidak terbawa ke permintaan berikutnya.
  */
 class AnalyticsController extends Controller
 {
-    public function __construct(private AnalyticsService $analytics) {}
-
     /**
      * Analitik SDM
      */
-    public function index(AnalyticsRequest $request): JsonResponse
+    public function index(AnalyticsRequest $request, AnalyticsService $analytics): JsonResponse
     {
-        return ApiResponse::success($this->analytics->run($request->analyticsQuery()), 'Analitik SDM.');
+        return ApiResponse::success($analytics->run($request->analyticsQuery()), 'Analitik SDM.');
     }
 
     /**
@@ -34,10 +34,10 @@ class AnalyticsController extends Controller
      *
      * Mengirim file .xlsx, bukan JSON. Nama file ada di header Content-Disposition.
      */
-    public function export(AnalyticsRequest $request, AnalyticsWorkbook $workbook): BinaryFileResponse
+    public function export(AnalyticsRequest $request, AnalyticsService $analytics, AnalyticsWorkbook $workbook): BinaryFileResponse
     {
         $query = $request->analyticsQuery();
-        $path = $workbook->write($query, $this->analytics->run($query));
+        $path = $workbook->write($query, $analytics->run($query));
         $fileName = $query->fileName();
 
         return response()

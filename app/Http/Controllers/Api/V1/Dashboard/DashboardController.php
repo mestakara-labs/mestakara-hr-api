@@ -25,15 +25,15 @@ use Illuminate\Validation\ValidationException;
  *   GET /dashboard/filter-options   pilihan filter
  *
  * Periode: from & to (YYYY-MM-DD), bulan utuh; bawaan 1 Januari tahun berjalan s.d. hari ini.
+ * Service dashboard menyimpan hasil hitungan selama satu permintaan, jadi diterima per method (bukan lewat constructor,
+ * karena instance controller bisa dipakai ulang oleh router untuk permintaan berikutnya).
  */
 class DashboardController extends Controller
 {
-    public function __construct(private DashboardWidgets $widgets) {}
-
     /**
      * Semua widget dashboard
      */
-    public function index(DashboardRequest $request): JsonResponse
+    public function index(DashboardRequest $request, DashboardWidgets $widgets): JsonResponse
     {
         $period = $request->period();
 
@@ -41,14 +41,14 @@ class DashboardController extends Controller
             'from' => $period->from->toDateString(),
             'to' => $period->to->toDateString(),
             'period_label' => $period->label(),
-            'widgets' => array_values($this->widgets->all($period)),
+            'widgets' => array_values($widgets->all($period)),
         ], 'Dashboard.');
     }
 
     /**
      * Satu widget dashboard
      */
-    public function widget(DashboardRequest $request, string $key): JsonResponse
+    public function widget(DashboardRequest $request, DashboardWidgets $widgets, string $key): JsonResponse
     {
         if (! DashboardWidgets::exists($key)) {
             return ApiResponse::error('Widget tidak ditemukan.', 404);
@@ -62,7 +62,7 @@ class DashboardController extends Controller
                 : 'group_by hanya boleh: '.implode(', ', $choices)]);
         }
 
-        $widget = $this->widgets->one($key, $request->period(), $request->filters(), $groupBy);
+        $widget = $widgets->one($key, $request->period(), $request->filters(), $groupBy);
 
         return ApiResponse::success($widget, 'Widget dashboard.');
     }

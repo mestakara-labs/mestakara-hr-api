@@ -7,7 +7,7 @@ use App\Services\Attendance\AttendanceSummaryService;
 /**
  * KEHADIRAN & LEMBUR PER BULAN untuk dashboard (Casual & Daily Worker = karyawan di Daftar Upah bulan itu).
  * Jumlah kode & daftar lembur dari AttendanceSummaryService (sumber yang sama dengan Daftar Upah); hari aktif dari
- * baris Daftar Upah. Satu bulan dibaca sekali per permintaan. Daftarkan sebagai scoped binding.
+ * baris Daftar Upah. Satu bulan dibaca sekali per permintaan. Satu instance per permintaan (AppServiceProvider).
  */
 class AttendanceMonths
 {

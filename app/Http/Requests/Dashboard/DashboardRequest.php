@@ -51,9 +51,10 @@ class DashboardRequest extends FormRequest
             if ($validator->errors()->isNotEmpty()) {
                 return;
             }
+            // Dibaca sebagai tanggal WIB, sama dengan "hari ini" (DataPeriod::today()).
             $today = DataPeriod::today();
             foreach (['from', 'to'] as $field) {
-                if ($this->filled($field) && Carbon::parse($this->input($field))->greaterThan($today)) {
+                if ($this->filled($field) && Carbon::parse($this->input($field), DataPeriod::TIMEZONE)->startOfDay()->greaterThan($today)) {
                     $validator->errors()->add($field, 'Tanggal tidak boleh melewati hari ini');
                 }
             }

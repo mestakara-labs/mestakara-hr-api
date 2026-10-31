@@ -21,21 +21,22 @@ class AttendanceEmployees
         'wageSchemes.payrollGroup', 'costCenterHistories.costCenter',
     ];
 
-    /** Lihat reuseLoadedEmployees(). */
-    private bool $reuseEmployees = false;
-
-    /** @var EloquentCollection<int, Employee>|null */
-    private ?EloquentCollection $dailyWageEmployees = null;
+    /** @var EloquentCollection<array-key, Employee>|null lihat useEmployees() */
+    private ?EloquentCollection $loadedEmployees = null;
 
     public function __construct(private EmployeeStatusService $statusService) {}
 
     /**
-     * Muat karyawan Casual & DW SEKALI lalu pakai ulang untuk setiap periode. Hanya untuk pembacaan banyak bulan
-     * sekaligus dalam satu permintaan (dashboard); bawaannya dimuat ulang setiap kali supaya tidak memakai data basi.
+     * Pakai karyawan yang SUDAH dimuat beserta relasinya (minimal RELATIONS) untuk setiap periode, dan ingat kejadian
+     * statusnya. HANYA untuk pembacaan banyak bulan dalam satu permintaan (dashboard); bawaannya karyawan dimuat ulang
+     * setiap kali supaya tidak memakai data basi.
+     *
+     * @param  EloquentCollection<array-key, Employee>  $employees  urut nama; status apa pun (disaring di sini)
      */
-    public function reuseLoadedEmployees(): static
+    public function useEmployees(EloquentCollection $employees): static
     {
-        $this->reuseEmployees = true;
+        $this->loadedEmployees = $employees;
+        $this->statusService->rememberEvents();
 
         return $this;
     }
@@ -47,15 +48,12 @@ class AttendanceEmployees
      */
     public function forPeriod(AttendancePeriod $period): Collection
     {
-        $employees = $this->reuseEmployees ? $this->dailyWageEmployees : null;
-        $employees ??= Employee::query()
-            ->with(self::RELATIONS)
-            ->whereIn('employment_status', EmploymentStatus::dailyWageValues())
-            ->orderBy('name')
-            ->get();
-        if ($this->reuseEmployees) {
-            $this->dailyWageEmployees = $employees;
-        }
+        $employees = $this->loadedEmployees?->filter(fn (Employee $employee) => $employee->hasDailyWage())
+            ?? Employee::query()
+                ->with(self::RELATIONS)
+                ->whereIn('employment_status', EmploymentStatus::dailyWageValues())
+                ->orderBy('name')
+                ->get();
 
         return $employees
             ->toBase()

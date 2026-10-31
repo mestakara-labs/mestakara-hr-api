@@ -59,6 +59,50 @@ class DashboardTest extends TestCase
         $this->getJson('/api/v1/dashboard/widgets/workforce.kpi_total?from=2024-11-01&to=2026-10-31')->assertOk();
     }
 
+    public function test_today_is_accepted_and_tomorrow_is_rejected(): void
+    {
+        // Hari ini 5 Nov 2026 (WIB); jam aplikasi UTC.
+        foreach ($this->periodUrls('2026-11-05') as $url) {
+            $this->getJson($url)->assertOk()->assertJsonPath('data.to', '2026-11-05');
+        }
+        foreach ($this->periodUrls('2026-11-06') as $url) {
+            $this->getJson($url)->assertStatus(422)->assertJsonPath('errors.to.0', 'Tanggal tidak boleh melewati hari ini');
+        }
+    }
+
+    public function test_today_follows_office_time_when_utc_is_still_yesterday(): void
+    {
+        $this->travelTo('2026-10-31 20:00:00');   // = 1 Nov 2026 03:00 WIB
+
+        foreach ($this->periodUrls('2026-11-01') as $url) {
+            $this->getJson($url)->assertOk()->assertJsonPath('data.to', '2026-11-01');
+        }
+        $this->getJson('/api/v1/dashboard?to=2026-11-02')->assertStatus(422)->assertJsonValidationErrors('to');
+    }
+
+    /** @return list<string> tiga endpoint dengan from = 1 bulan itu & to = $to */
+    private function periodUrls(string $to): array
+    {
+        $from = substr($to, 0, 8).'01';
+
+        return [
+            "/api/v1/dashboard?from={$from}&to={$to}",
+            "/api/v1/dashboard/widgets/workforce.kpi_total?from={$from}&to={$to}",
+            "/api/v1/analytics?topic=workforce&group_by=division&from={$from}&to={$to}",
+        ];
+    }
+
+    public function test_results_are_not_carried_to_the_next_request(): void
+    {
+        $this->assertSame(3, $this->widget('workforce.kpi_total')['data']['value']);
+        $this->getJson('/api/v1/analytics?topic=workforce&group_by=division&'.'from=2026-10-01&to=2026-10-31')->assertJsonPath('data.summary.total', 3);
+
+        $this->terminate($this->dina, '2026-10-20');
+
+        $this->assertSame(2, $this->widget('workforce.kpi_total')['data']['value']);
+        $this->getJson('/api/v1/analytics?topic=workforce&group_by=division&'.'from=2026-10-01&to=2026-10-31')->assertJsonPath('data.summary.total', 2);
+    }
+
     public function test_unknown_widget_gives_404(): void
     {
         $this->getJson('/api/v1/dashboard/widgets/payroll.unknown')->assertNotFound()->assertJsonPath('message', 'Widget tidak ditemukan.');

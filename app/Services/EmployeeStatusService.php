@@ -5,9 +5,8 @@ namespace App\Services;
 use App\Enums\EmployeeActiveStatus;
 use App\Enums\ProposalStatus;
 use App\Models\Employee;
-use App\Models\EmployeeActivationItem;
-use App\Models\EmployeeTerminationItem;
 use Illuminate\Support\Carbon;
+use WeakMap;
 
 /**
  * STATUS KEPEGAWAIAN karyawan, dihitung dari RIWAYAT (bukan ditimpa):
@@ -24,6 +23,12 @@ use Illuminate\Support\Carbon;
  */
 class EmployeeStatusService
 {
+    /** @var array<string, list<string>> [from|to => tanggal-tanggal], lihat calendar() */
+    private array $calendars = [];
+
+    /** @var WeakMap<Employee, list<array{date: Carbon, is_active: bool}>>|null lihat rememberEvents() */
+    private ?WeakMap $rememberedEvents = null;
+
     /**
      * Kejadian status yang TMT-nya ≤ $until (bawaan: hari ini), urut dari yang paling lama.
      * Kalau satu tanggal ada dua kejadian, "aktif" diurutkan lebih dulu.
@@ -33,24 +38,57 @@ class EmployeeStatusService
     public function events(Employee $employee, ?Carbon $until = null): array
     {
         $until ??= Carbon::today();
+        $all = $this->rememberedEvents === null
+            ? $this->allEvents($employee)
+            : $this->rememberedEvents[$employee] ??= $this->allEvents($employee);
+
+        $events = [];
+        foreach ($all as $event) {
+            if ($event['date']->greaterThan($until)) {
+                break;   // sudah urut tanggal
+            }
+            $events[] = $event;
+        }
+
+        return $events;
+    }
+
+    /**
+     * Ingat kejadian status setiap karyawan selama instance ini dipakai, supaya tidak disusun ulang untuk setiap
+     * tanggal. HANYA untuk pembacaan banyak tanggal dalam satu permintaan (dashboard); bawaannya selalu dibaca ulang
+     * supaya alur yang mengubah data tidak memakai kejadian lama.
+     */
+    public function rememberEvents(): static
+    {
+        $this->rememberedEvents ??= new WeakMap;
+
+        return $this;
+    }
+
+    /**
+     * Semua kejadian status yang berlaku (apa pun TMT-nya), urut tanggal; "aktif" lebih dulu pada tanggal yang sama.
+     * Ditulis dengan array biasa (bukan Collection) karena dipanggil untuk ratusan karyawan × banyak tanggal.
+     *
+     * @return list<array{date: Carbon, is_active: bool}>
+     */
+    private function allEvents(Employee $employee): array
+    {
         $employee->loadMissing(['activationItems.activation', 'terminationItems.termination']);
 
-        $activated = $employee->activationItems
-            ->filter(fn (EmployeeActivationItem $item) => $item->activation->status === ProposalStatus::Effective)
-            ->map(fn (EmployeeActivationItem $item) => ['date' => $item->effective_date, 'is_active' => true]);
+        $events = [];
+        foreach ($employee->activationItems as $item) {
+            if ($item->activation->status === ProposalStatus::Effective && $item->effective_date !== null) {
+                $events[] = ['date' => $item->effective_date, 'is_active' => true];
+            }
+        }
+        foreach ($employee->terminationItems as $item) {
+            if ($item->termination->status === ProposalStatus::Effective && $item->effective_date !== null) {
+                $events[] = ['date' => $item->effective_date, 'is_active' => false];
+            }
+        }
+        usort($events, fn (array $a, array $b) => $a['date'] <=> $b['date'] ?: $b['is_active'] <=> $a['is_active']);
 
-        $terminated = $employee->terminationItems
-            ->filter(fn (EmployeeTerminationItem $item) => $item->termination->status === ProposalStatus::Effective)
-            ->map(fn (EmployeeTerminationItem $item) => ['date' => $item->effective_date, 'is_active' => false]);
-
-        return $activated->concat($terminated)
-            ->filter(fn (array $event) => $event['date'] !== null && $event['date']->lessThanOrEqualTo($until))
-            ->sortBy([
-                fn (array $a, array $b) => $a['date'] <=> $b['date'],
-                fn (array $a, array $b) => $b['is_active'] <=> $a['is_active'],
-            ])
-            ->values()
-            ->all();
+        return $events;
     }
 
     /** Status kepegawaian pada tanggal tertentu (bawaan: hari ini). */
@@ -115,9 +153,8 @@ class EmployeeStatusService
         $dates = [];
         $index = 0;
         $isActive = false;
-        $last = $to->toDateString();
 
-        for ($date = $from->toDateString(); $date <= $last; $date = date('Y-m-d', strtotime($date.' +1 day'))) {
+        foreach ($this->calendar($from, $to) as $date) {
             while (isset($events[$index]) && $events[$index]['date'] <= $date) {
                 $isActive = $events[$index]['is_active'];
                 $index++;
@@ -128,6 +165,25 @@ class EmployeeStatusService
         }
 
         return $dates;
+    }
+
+    /**
+     * Semua tanggal dalam rentang, "YYYY-MM-DD". Disimpan per rentang karena rentang yang sama dipakai untuk setiap karyawan.
+     *
+     * @return list<string>
+     */
+    private function calendar(Carbon $from, Carbon $to): array
+    {
+        $key = $from->toDateString().'|'.$to->toDateString();
+        if (! isset($this->calendars[$key])) {
+            $dates = [];
+            for ($date = $from->toDateString(); $date <= $to->toDateString(); $date = date('Y-m-d', strtotime($date.' +1 day'))) {
+                $dates[] = $date;
+            }
+            $this->calendars[$key] = $dates;
+        }
+
+        return $this->calendars[$key];
     }
 
     /**

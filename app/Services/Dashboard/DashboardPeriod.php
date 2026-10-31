@@ -27,8 +27,7 @@ class DashboardPeriod
     /** Dari isian from/to (YYYY-MM-DD, boleh kosong); dibulatkan ke bulan utuh. */
     public static function make(?string $from, ?string $to): self
     {
-        $today = DataPeriod::today();
-        $toDate = $to === null ? $today->copy() : Carbon::parse($to);
+        $toDate = Carbon::parse($to ?? DataPeriod::today()->toDateString());
         // from kosong = 1 Januari tahun `to` (bawaan: tahun berjalan).
         $fromDate = $from === null ? $toDate->copy()->startOfYear() : Carbon::parse($from);
 
@@ -38,10 +37,12 @@ class DashboardPeriod
     /** Rentang dari bulan pertama s.d. bulan terakhir (keduanya tanggal 1). */
     private static function ofMonths(Carbon $firstMonth, Carbon $lastMonth): self
     {
-        $end = $lastMonth->copy()->endOfMonth()->startOfDay();
-        $today = DataPeriod::today();
+        // Dibandingkan sebagai teks tanggal ("hari ini" = WIB), lalu dibuat di zona waktu aplikasi supaya bisa
+        // dibandingkan langsung dengan TMT di database (sama dengan DataPeriod::asOf()).
+        $end = $lastMonth->copy()->endOfMonth()->toDateString();
+        $today = DataPeriod::today()->toDateString();
 
-        return new self(Carbon::parse($firstMonth->toDateString()), Carbon::parse(($end->greaterThan($today) ? $today : $end)->toDateString()));
+        return new self(Carbon::parse($firstMonth->toDateString()), Carbon::parse(min($end, $today)));
     }
 
     /** Rentang sebelumnya dengan jumlah bulan yang sama. */

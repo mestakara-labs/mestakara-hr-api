@@ -4,12 +4,17 @@ namespace App\Services\Dashboard;
 
 use App\Enums\EmployeeActiveStatus;
 use App\Models\Employee;
+use App\Models\PositionAssignment;
+use App\Services\EmployeeStatusService;
 use Closure;
 use Illuminate\Support\Carbon;
 
 /**
  * FAKTA SATU KARYAWAN PADA SATU TANGGAL (dibuat oleh WorkforceFacts): status kepegawaian & jabatan utama per tanggal
  * itu (aturan sama dengan Periode Data), penempatan, data dasar upah, usia, pendidikan, masa kerja, pensiun.
+ *
+ * Setiap fakta baru DIHITUNG saat pertama dibaca lalu disimpan, karena dashboard membuat fakta untuk ratusan karyawan
+ * × banyak tanggal sementara satu widget biasanya hanya memakai satu-dua fakta (mis. filter Sub Unit).
  *
  * Nilai satu dimensi dibaca lewat values(), selalu berupa daftar [{ key, label }] karena objek penempatan &
  * kategori objek bisa lebih dari satu. Tanpa nilai = key "tanpa" (mis. "Tanpa Bidang").
@@ -18,40 +23,121 @@ class EmployeeFacts
 {
     public const NONE_KEY = 'tanpa';
 
-    /**
-     * @param  array<string, string>  $placementObjects  [id => nama]
-     * @param  array<string, string>  $segments  [id kategori => nama kategori]
-     * @param  array{id: string, code: string, name: string}|null  $costCenter
-     * @param  array{id: string, name: string}|null  $payrollGroup  hanya Casual & DW (dari skema upah)
-     */
-    private ?int $serviceMonths = null;
+    /** @var array<string, mixed> fakta yang sudah dihitung, lihat remember() */
+    private array $remembered = [];
 
     public function __construct(
         public readonly Employee $employee,
         public readonly Carbon $date,
-        public readonly EmployeeActiveStatus $status,
-        public readonly ?string $divisionId,
-        public readonly ?string $divisionName,
-        public readonly ?string $subUnitId,
-        public readonly ?string $subUnitName,
-        public readonly array $placementObjects,
-        public readonly array $segments,
-        public readonly ?array $costCenter,
-        public readonly ?array $payrollGroup,
-        public readonly ?int $brmLevel,
-        public readonly ?int $jobGrade,
-        public readonly ?int $age,
-        public readonly string $education,
-        private readonly Closure $countServiceMonths,
-        public readonly ?Carbon $retirementDate,
-        public readonly bool $hasWageScheme,
-        public readonly bool $hasBankAccount,
+        private readonly EmployeeStatusService $statusService,
     ) {}
 
-    /** Masa kerja (bulan); dihitung saat pertama diminta karena cukup berat. */
-    public function serviceMonths(): int
-    {
-        return $this->serviceMonths ??= ($this->countServiceMonths)();
+    public EmployeeActiveStatus $status {
+        get => $this->remember('status', fn () => $this->statusService->statusOn($this->employee, $this->date));
+    }
+
+    public ?string $divisionId {
+        get => $this->mainAssignment()?->position->division?->id;
+    }
+
+    public ?string $divisionName {
+        get => $this->mainAssignment()?->position->division?->name;
+    }
+
+    public ?string $subUnitId {
+        get => $this->mainAssignment()?->subUnit?->id;
+    }
+
+    public ?string $subUnitName {
+        get => $this->mainAssignment()?->subUnit?->name;
+    }
+
+    /** @var array<string, string> [id => nama] */
+    public array $placementObjects {
+        get => $this->remember('placementObjects', function () {
+            $objects = [];
+            foreach ($this->mainAssignment()?->placementObjects ?? [] as $object) {
+                $objects[$object->id] = $object->name;
+            }
+
+            return $objects;
+        });
+    }
+
+    /** @var array<string, string> [id kategori => nama kategori] */
+    public array $segments {
+        get => $this->remember('segments', function () {
+            $segments = [];
+            foreach ($this->mainAssignment()?->placementObjects ?? [] as $object) {
+                if ($object->category !== null) {
+                    $segments[$object->category->id] = $object->category->name;
+                }
+            }
+
+            return $segments;
+        });
+    }
+
+    /** @var array{id: string, code: string, name: string}|null */
+    public ?array $costCenter {
+        get => $this->remember('costCenter', function () {
+            $costCenter = $this->employee->costCenterOn($this->date)?->costCenter;
+
+            return $costCenter === null ? null : ['id' => $costCenter->id, 'code' => $costCenter->code, 'name' => $costCenter->name];
+        });
+    }
+
+    /** @var array{id: string, name: string}|null hanya Casual & DW (dari skema upah) */
+    public ?array $payrollGroup {
+        get => $this->remember('payrollGroup', function () {
+            $group = $this->employee->hasDailyWage() ? $this->employee->wageSchemeOn($this->date)?->payrollGroup : null;
+
+            return $group === null ? null : ['id' => $group->id, 'name' => $group->name];
+        });
+    }
+
+    public ?int $brmLevel {
+        get => $this->mainAssignment()?->position->brm_level;
+    }
+
+    public ?int $jobGrade {
+        get => $this->mainAssignment()?->position->job_grade;
+    }
+
+    /** Usia (tahun penuh) pada tanggal itu; null bila tanggal lahir kosong. */
+    public ?int $age {
+        get => $this->remember('age', function () {
+            $birthDate = $this->employee->birth_date;
+            if ($birthDate === null || $birthDate->greaterThan($this->date)) {
+                return null;
+            }
+            // Selisih tahun, dikurangi 1 bila ulang tahun tahun itu belum tiba (lebih cepat dari diffInYears).
+            $age = $this->date->year - $birthDate->year;
+
+            return $this->date->format('md') < $birthDate->format('md') ? $age - 1 : $age;
+        });
+    }
+
+    /** Pendidikan terakhir, "-" bila belum ada riwayat. */
+    public string $education {
+        get => $this->remember('education', fn () => $this->employee->highestEducation()?->level ?? '-');
+    }
+
+    /** Masa kerja dalam bulan (tanpa masa nonaktif). */
+    public int $serviceMonths {
+        get => $this->remember('serviceMonths', fn () => $this->statusService->serviceMonths($this->employee, $this->date));
+    }
+
+    public ?Carbon $retirementDate {
+        get => $this->remember('retirementDate', fn () => $this->employee->retirementDate($this->mainAssignment()));
+    }
+
+    public bool $hasWageScheme {
+        get => $this->remember('hasWageScheme', fn () => $this->employee->wageSchemeOn($this->date) !== null);
+    }
+
+    public bool $hasBankAccount {
+        get => $this->remember('hasBankAccount', fn () => $this->employee->bankAccountOn($this->date) !== null);
     }
 
     public function isActive(): bool
@@ -102,5 +188,21 @@ class EmployeeFacts
     public function keys(string $dimension, ?array $payrollRow = null): array
     {
         return array_column($this->values($dimension, $payrollRow), 'key');
+    }
+
+    /** Jabatan utama pada tanggal itu. */
+    private function mainAssignment(): ?PositionAssignment
+    {
+        return $this->remember('mainAssignment', fn () => $this->employee->mainAssignment($this->date));
+    }
+
+    /** Hitung sekali, simpan, lalu pakai ulang (null juga disimpan). */
+    private function remember(string $fact, Closure $compute): mixed
+    {
+        if (! array_key_exists($fact, $this->remembered)) {
+            $this->remembered[$fact] = $compute();
+        }
+
+        return $this->remembered[$fact];
     }
 }

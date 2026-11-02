@@ -2,8 +2,11 @@
 
 namespace App\Services\Payroll;
 
+use App\Enums\EmployeeCategory;
+use App\Enums\PayrollDocument;
 use App\Enums\PayrollGroupBy;
 use App\Enums\PayrollPeriodStatus;
+use App\Models\Employee;
 use App\Models\PayrollPeriod;
 use App\Support\DataPeriod;
 use App\Support\DocumentStyle;
@@ -23,18 +26,16 @@ class PayrollExportText
     public const DAY_NAMES = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
 
     /**
-     * Nama file, mis. "Daftar Upah Karyawan Casual & DW - Kelompok Daftar Upah - Gunung Mas - Oktober 2026 (DRAF).xlsx".
+     * Nama file "<Dokumen> <Kategori> - <nama kelompok | N Kelompok> - <Bulan Tahun>[ (DRAF)].<ext>", mis.
+     * "SPKL Lembur Reguler Karyawan Daily Worker - 3 Kelompok - Oktober 2026 (DRAF).xlsx".
      * Karakter yang tidak boleh di nama file (/ \ : * ? " < > |) diganti "-".
+     *
+     * @param  list<string>  $groupNames  kelompok yang ada di file
      */
-    public static function fileName(string $prefix, PayrollGroupBy $groupBy, ?string $groupName, string $monthLabel, bool $isDraft, string $extension): string
+    public static function fileName(PayrollDocument $document, EmployeeCategory $category, array $groupNames, string $monthLabel, bool $isDraft, string $extension): string
     {
-        $parts = [$prefix, self::groupByLabel($groupBy)];
-        if ($groupName !== null) {
-            $parts[] = $groupName;
-        }
-        $parts[] = $monthLabel;
-
-        $name = implode(' - ', $parts).($isDraft ? ' (DRAF)' : '');
+        $groups = count($groupNames) === 1 ? $groupNames[0] : count($groupNames).' Kelompok';
+        $name = "{$document->label()} {$category->label()} - {$groups} - {$monthLabel}".($isDraft ? ' (DRAF)' : '');
 
         return preg_replace('/[\/\\\\:*?"<>|]/', '-', $name).'.'.$extension;
     }
@@ -66,13 +67,18 @@ class PayrollExportText
         return $title;
     }
 
-    /** Tanggal tanda tangan: tanggal kunci (WIB) kalau periode dikunci, selain itu hari ini. Mis. "02 Oktober 2026". */
-    public static function signDate(string $period): string
+    /**
+     * Tanggal tanda tangan: $chosen kalau diisi, selain itu tanggal kunci (WIB) kalau periode dikunci, selain itu hari ini.
+     * Mis. "02 Oktober 2026".
+     */
+    public static function signDate(string $period, ?Carbon $chosen = null): string
     {
-        $payrollPeriod = PayrollPeriod::query()->where('period', $period)->first();
-        $date = $payrollPeriod?->status === PayrollPeriodStatus::Locked && $payrollPeriod->locked_at !== null
-            ? Carbon::parse($payrollPeriod->locked_at)->timezone(DataPeriod::TIMEZONE)
-            : DataPeriod::today();
+        $payrollPeriod = $chosen === null ? PayrollPeriod::query()->where('period', $period)->first() : null;
+        $date = match (true) {
+            $chosen !== null => $chosen,
+            $payrollPeriod?->status === PayrollPeriodStatus::Locked && $payrollPeriod->locked_at !== null => Carbon::parse($payrollPeriod->locked_at)->timezone(DataPeriod::TIMEZONE),
+            default => DataPeriod::today(),
+        };
 
         return $date->format('d').' '.DataPeriod::label($date->format('Y-m'));
     }
@@ -116,22 +122,43 @@ class PayrollExportText
     }
 
     /**
-     * Kelompok yang diekspor: semua, atau satu kelompok (group_key). Kunci tidak dikenal -> 422.
+     * Kelompok yang diekspor (group_keys; null = semua, urutan tetap urutan Daftar Upah), berisi HANYA karyawan kategori
+     * itu menurut status karyawan SAAT INI. Kelompok yang jadi kosong dilewati. Kunci tidak dikenal -> 422.
      *
      * @param  list<array<string, mixed>>  $groups  hasil PayrollGroups::build
+     * @param  list<string>|null  $groupKeys
      * @return list<array<string, mixed>>
      */
-    public static function selectGroups(array $groups, ?string $groupKey): array
+    public static function selectGroups(array $groups, ?array $groupKeys, EmployeeCategory $category): array
     {
-        if ($groupKey === null) {
-            return $groups;
+        if ($groupKeys !== null) {
+            $unknown = array_diff($groupKeys, array_column($groups, 'key'));
+            if ($unknown !== []) {
+                throw ValidationException::withMessages(['group_keys' => 'Kelompok tidak ditemukan di daftar upah periode ini: '.implode(', ', $unknown)]);
+            }
+            $groups = array_values(array_filter($groups, fn (array $group) => in_array($group['key'], $groupKeys, true)));
         }
 
-        $selected = array_values(array_filter($groups, fn (array $group) => $group['key'] === $groupKey));
-        if ($selected === []) {
-            throw ValidationException::withMessages(['group_key' => 'Kelompok tidak ditemukan di daftar upah periode ini']);
+        $ids = array_merge(...array_map(fn (array $group) => array_column($group['rows'], 'employee_id'), $groups ?: [['rows' => []]]));
+        $statuses = Employee::query()->whereKey($ids)->pluck('employment_status', 'id');
+        $status = $category->employmentStatus()->value;
+        $selected = [];
+        foreach ($groups as $group) {
+            $group['rows'] = array_values(array_filter($group['rows'], fn (array $row) => ($statuses[$row['employee_id']] ?? null) === $status));
+            if ($group['rows'] !== []) {
+                $group['employee_count'] = count($group['rows']);
+                $selected[] = $group;
+            }
         }
 
         return $selected;
+    }
+
+    /** 422 "Tidak ada karyawan <kategori> untuk <dokumen> di kelompok yang dipilih". */
+    public static function nothingToExport(EmployeeCategory $category, PayrollDocument $document): ValidationException
+    {
+        return ValidationException::withMessages([
+            'document' => "Tidak ada karyawan {$category->shortLabel()} untuk {$document->label()} di kelompok yang dipilih",
+        ]);
     }
 }

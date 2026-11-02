@@ -3,7 +3,7 @@
 namespace App\Http\Requests\Attendance;
 
 /**
- * Pratinjau / simpan unggahan (multipart/form-data): { file, period, type }.
+ * Pratinjau / simpan unggahan (multipart/form-data): { file, period, type, employee_category }.
  */
 class AttendanceImportRequest extends AttendanceTemplateRequest
 {

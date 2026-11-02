@@ -5,7 +5,7 @@ namespace App\Services\Attendance;
 use App\Enums\OvertimeSource;
 
 /**
- * DAFTAR TARGET LEMBUR DW satu periode (GET /overtime-dw/targets): karyawan Casual & DW yang punya hari DW
+ * DAFTAR TARGET LEMBUR DW satu periode (GET /overtime-dw/targets): karyawan CASUAL yang punya hari DW
  * ATAU punya lembur DW, dengan target, upah lembur DW sekarang, selisih, status, dan jumlah baris per sumber.
  * Aturan hitungnya di DwPay.
  */

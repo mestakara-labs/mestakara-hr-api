@@ -3,6 +3,7 @@
 namespace App\Services\Attendance;
 
 use App\Enums\AttendanceCode;
+use App\Enums\EmployeeCategory;
 use App\Enums\WageType;
 use App\Models\OvertimeSetting;
 use App\Services\Employee\EmployeeExportWorkbook;
@@ -21,10 +22,13 @@ use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
  * ketika sheet data diisi (rumus Excel). Hanya informasi; tidak dibaca saat unggah.
  *
  *   Daftar Hadir   Gaji Pokok, tarif/hari (Gaji Pokok ÷ HKE), jumlah K DW S I C M L (dari kolom jumlah di sheet data,
- *                  dicari lewat ID Sistem sehingga tetap benar walaupun sheet data diurutkan), upah hari kerja, upah DW
+ *                  dicari lewat ID Sistem sehingga tetap benar walaupun sheet data diurutkan), upah hari kerja, upah DW,
+ *                  tarif/jam, jam DW (kolom DW hanya di template Casual; template Daily Worker tanpa kolom DW)
  *                    upah hari kerja  Harian = K × tarif/hari (TIDAK dibatasi; K melebihi batas hari diberi warna merah);
  *                                     Flat Bulanan = round(Gaji Pokok × hari aktif ÷ hari kalender)
  *                    upah DW          round(DW × Gaji Pokok ÷ HKE)
+ *                    tarif/jam        round(Gaji Pokok ÷ pembagi upah sejam), sama dengan Lembur
+ *                    jam lembur DW    upah DW ÷ tarif/jam, apa adanya (dibulatkan 2 angka di belakang koma)
  *   Lembur         Gaji Pokok, tarif/jam (round(Gaji Pokok ÷ pembagi)), total jam, total uang lembur
  *                    upah per TANGGAL = tarif × (min(jam, 1) × pengali pertama + max(jam − 1, 0) × pengali berikutnya),
  *                    dibulatkan ke kelipatan pembulatan (aturan sama dengan DwPay); jam per tanggal ada di kolom
@@ -47,12 +51,15 @@ class TemplateRecapSheet
     private const CODE_ORDER = ['K', 'DW', 'S', 'I', 'C', 'M', 'L'];
 
     /**
-     * Rekap template Daftar Hadir (sheet data: AttendanceListLayout).
+     * Rekap template Daftar Hadir (sheet data: AttendanceListLayout). Kolom DW (jumlah DW, upah DW, tarif/jam, jam DW)
+     * hanya untuk kategori yang boleh DW (Casual).
      *
      * @param  Collection<int, PeriodEmployee>  $employees  urutan sama dengan sheet data
      */
-    public static function attendanceList(Spreadsheet $spreadsheet, AttendancePeriod $period, Collection $employees): void
+    public static function attendanceList(Spreadsheet $spreadsheet, AttendancePeriod $period, EmployeeCategory $category, Collection $employees): void
     {
+        $settings = OvertimeSetting::current();
+        $withDw = $category->allowsDw();
         $days = count($period->dates());
         $data = "'".AttendanceListLayout::SHEET_TITLE."'!";
         $idColumn = $data.'$A:$A';
@@ -64,20 +71,39 @@ class TemplateRecapSheet
             'G' => ['Jenis Upah', 13, false], 'H' => ['Gaji Pokok', 13, true], 'I' => ['HKE', 6, false],
             'J' => ['Tarif / Hari', 11, true], 'K' => ['Batas Hari', 7, false], 'L' => ['Hari Aktif', 7, false],
         ];
+        // Kolom sesudah L diberi huruf berurutan: jumlah kode, upah (& kolom DW), keterangan.
+        $nextLetter = function () use (&$columns): string {
+            return Coordinate::stringFromColumnIndex(count($columns) + 1);
+        };
         $codeLetters = [];
-        foreach (self::CODE_ORDER as $index => $code) {
-            $letter = Coordinate::stringFromColumnIndex(13 + $index);   // M, N, …
-            $codeLetters[$code] = $letter;
-            $columns[$letter] = [$code, 6, false];
+        foreach (self::CODE_ORDER as $code) {
+            if ($code === AttendanceCode::DailyWorker->value && ! $withDw) {
+                continue;
+            }
+            $codeLetters[$code] = $nextLetter();
+            $columns[$codeLetters[$code]] = [$code, 6, false];
         }
-        $columns += ['T' => ['Upah Hari Kerja', 15, true], 'U' => ['Upah DW', 14, true], 'V' => ['Keterangan', 32, false]];
+        $extraColumns = ['pay' => ['Upah Hari Kerja', 15, true]];
+        if ($withDw) {
+            $extraColumns += ['dw_pay' => ['Upah DW', 14, true], 'hourly' => ['Tarif / Jam', 11, true], 'dw_hours' => ['Jam Lembur DW Dibutuhkan', 13, false]];
+        }
+        $letters = [];
+        foreach ($extraColumns + ['note' => ['Keterangan', 32, false]] as $key => $column) {
+            $letters[$key] = $nextLetter();
+            $columns[$letters[$key]] = $column;
+        }
 
+        $note = 'Upah hari kerja: Harian = K × tarif/hari (K melebihi batas hari berwarna merah); Flat Bulanan = Gaji Pokok × hari aktif ÷ '
+            .$days.' hari.';
+        if ($withDw) {
+            $note .= ' Upah DW = DW × Gaji Pokok ÷ HKE. Tarif/jam = Gaji Pokok ÷ '.$settings->hourly_divisor
+                .'. Jam lembur DW dibutuhkan = Upah DW ÷ Tarif/jam.';
+        }
         $sheet = self::createSheet($spreadsheet, 'REKAP DAFTAR HADIR — Periode: '.$period->label(),
-            'Upah hari kerja: Harian = K × tarif/hari (K melebihi batas hari berwarna merah); Flat Bulanan = Gaji Pokok × hari aktif ÷ '
-            .$days.' hari. Upah DW = DW × Gaji Pokok ÷ HKE. Angka ikut berubah saat sheet '.AttendanceListLayout::SHEET_TITLE.' diisi.',
-            $columns);
+            $note.' Angka ikut berubah saat sheet '.AttendanceListLayout::SHEET_TITLE.' diisi.', $columns);
         $sheet->getColumnDimension('A')->setVisible(false);
 
+        ['pay' => $pay, 'note' => $noteLetter] = $letters;
         $row = self::FIRST_DATA_ROW;
         foreach ($employees->values() as $index => $item) {
             $scheme = $item->scheme;
@@ -102,15 +128,21 @@ class TemplateRecapSheet
                 $countColumn = AttendanceListLayout::countLetter($days, array_search($code, AttendanceCode::values(), true));
                 self::formula($sheet, "{$letter}{$row}", "=IFERROR(INDEX({$data}\${$countColumn}:\${$countColumn},MATCH(\$A{$row},{$idColumn},0)),0)");
             }
-            [$k, $dw] = [$codeLetters['K'].$row, $codeLetters['DW'].$row];
-            self::formula($sheet, "T{$row}", "=IF(H{$row}=\"\",0,IF(G{$row}=\"".WageType::Daily->value."\",{$k}*J{$row},ROUND(H{$row}*L{$row}/{$days},0)))");
-            self::formula($sheet, "U{$row}", "=IF(H{$row}=\"\",0,ROUND({$dw}*H{$row}/I{$row},0))");
-            self::formula($sheet, "V{$row}", "=IF(H{$row}=\"\",\"Skema upah belum diatur\",IF(AND(K{$row}<>\"\",{$k}>K{$row}),\"K \"&{$k}&\" melebihi batas \"&K{$row}&\" hari\",\"\"))");
+            $k = $codeLetters['K'].$row;
+            self::formula($sheet, "{$pay}{$row}", "=IF(H{$row}=\"\",0,IF(G{$row}=\"".WageType::Daily->value."\",{$k}*J{$row},ROUND(H{$row}*L{$row}/{$days},0)))");
+            if ($withDw) {
+                ['dw_pay' => $dwPay, 'hourly' => $hourly, 'dw_hours' => $dwHours] = $letters;
+                self::formula($sheet, "{$dwPay}{$row}", "=IF(H{$row}=\"\",0,ROUND({$codeLetters['DW']}{$row}*H{$row}/I{$row},0))");
+                self::formula($sheet, "{$hourly}{$row}", "=IF(H{$row}=\"\",\"\",ROUND(H{$row}/{$settings->hourly_divisor},0))");
+                self::formula($sheet, "{$dwHours}{$row}", "=IF(OR({$hourly}{$row}=\"\",{$dwPay}{$row}=0),0,ROUND({$dwPay}{$row}/{$hourly}{$row},2))");
+            }
+            self::formula($sheet, "{$noteLetter}{$row}", "=IF(H{$row}=\"\",\"Skema upah belum diatur\",IF(AND(K{$row}<>\"\",{$k}>K{$row}),\"K \"&{$k}&\" melebihi batas \"&K{$row}&\" hari\",\"\"))");
             $row++;
         }
 
         self::markOverCap($sheet, $codeLetters['K'], $row - 1);
-        self::finish($sheet, $columns, $row, [...array_values($codeLetters), 'T', 'U'], 'E');
+        $sumLetters = array_values(array_intersect_key($letters, array_flip(['pay', 'dw_pay', 'dw_hours'])));
+        self::finish($sheet, $columns, $row, [...array_values($codeLetters), ...$sumLetters], 'E');
     }
 
     /**

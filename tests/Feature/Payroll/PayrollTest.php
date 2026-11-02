@@ -200,7 +200,7 @@ class PayrollTest extends TestCase
             ->assertUnprocessable();
         $this->postJson("/api/v1/employees/{$this->ani->id}/wage-schemes", [...$scheme, 'effective_date' => '2026-11-01'])->assertCreated();
 
-        $this->getJson('/api/v1/attendance-imports?period=2026-10')->assertOk()->assertJsonPath('data.period_status', 'dikunci');
+        $this->getJson('/api/v1/attendance-imports?period=2026-10&employee_category=casual')->assertOk()->assertJsonPath('data.period_status', 'dikunci');
     }
 
     public function test_cannot_lock_the_current_month_and_unlock_needs_a_reason(): void

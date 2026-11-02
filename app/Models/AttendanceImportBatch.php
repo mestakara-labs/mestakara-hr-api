@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Enums\AttendanceImportType;
+use App\Enums\EmployeeCategory;
 use App\Enums\ImportBatchStatus;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
@@ -12,9 +13,10 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 
 /**
  * Satu unggahan Excel absensi / lembur (tabel attendance_import_batches) beserta ringkasan hasilnya.
+ * Setiap batch milik satu kategori karyawan (Casual / Daily Worker).
  */
 #[Fillable([
-    'period', 'import_type', 'file_name', 'uploaded_by',
+    'period', 'import_type', 'employee_category', 'file_name', 'uploaded_by',
     'total_rows', 'created_count', 'updated_count', 'deleted_count', 'skipped_count', 'conflict_count', 'status',
 ])]
 class AttendanceImportBatch extends Model
@@ -28,6 +30,7 @@ class AttendanceImportBatch extends Model
     {
         return [
             'import_type' => AttendanceImportType::class,
+            'employee_category' => EmployeeCategory::class,
             'status' => ImportBatchStatus::class,
         ];
     }

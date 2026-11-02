@@ -3,6 +3,7 @@
 namespace App\Services\Attendance;
 
 use App\Enums\AttendanceImportType;
+use App\Enums\EmployeeCategory;
 use App\Enums\OvertimeSource;
 use App\Enums\OvertimeType;
 use App\Models\AttendanceDay;
@@ -15,16 +16,21 @@ use Illuminate\Support\Collection;
 /**
  * MEMERIKSA file LEMBUR REGULER / LEMBUR DW (tanpa menyimpan). Per baris lembur:
  *
- *   SALAH       No. Registrasi tidak valid / bukan Casual-DW / tidak aktif pada tanggal itu; tanggal kosong / di luar
+ *   SALAH       No. Registrasi tidak valid / bukan Casual-DW / kategori lain (unggah di tab kategorinya; Lembur DW hanya
+ *               untuk Casual) / tidak aktif pada tanggal itu; tanggal kosong / di luar
  *               periode; jam kosong / format salah; durasi 0; uraian kosong; tumpang tindih dengan baris lain karyawan
  *               & tanggal yang sama di file, dengan lembur JENIS LAIN yang tersimpan, atau dengan lembur jenis SAMA
  *               dari manual / mobile; tanggal berkode I/S/M/C
  *   PERINGATAN  total lembur (reguler + DW) melebihi batas per hari / per minggu; tanggal berkode L atau kosong
+ *   DILEWATI    baris yang SAMA PERSIS (karyawan, tanggal, jam mulai & selesai) dengan lembur jenis sama dari manual /
+ *               mobile yang tersimpan — template ikut memuat baris itu; data tersimpan tetap dipakai (prioritas
+ *               manual > mobile > Excel), baris file tidak disimpan. Status "peringatan", dihitung `unchanged`.
  *
  * Baris salah menolak seluruh unggahan. Lembur tidak punya konflik (`conflicts` selalu kosong).
  *
  * Mengunggah ulang MENGGANTIKAN semua lembur jenis itu bersumber import_excel pada periode itu (Lembur DW: juga yang
- * bersumber rekomendasi_sistem, lihat replacedSources()), untuk semua karyawan termasuk yang tidak ada di file.
+ * bersumber rekomendasi_sistem, lihat replacedSources()), untuk semua karyawan KATEGORI ITU termasuk yang tidak ada
+ * di file. Lembur karyawan kategori lain tetap ada.
  */
 class OvertimeImportChecker
 {
@@ -34,13 +40,13 @@ class OvertimeImportChecker
      * @param  list<array{row: int, registration_number: ?string, date: mixed, start_time: mixed, end_time: mixed, description: ?string}>  $fileRows
      * @return array{rows: list<array>, summary: array<string, int>, entries: list<array>, conflicts: list<array>, replaced: int}
      */
-    public function check(AttendancePeriod $period, AttendanceImportType $type, array $fileRows): array
+    public function check(AttendancePeriod $period, AttendanceImportType $type, EmployeeCategory $category, array $fileRows): array
     {
         $overtimeType = self::overtimeType($type);
-        $employees = $this->attendanceEmployees->forPeriod($period);
+        $employees = $this->attendanceEmployees->forPeriod($period, $category);
         $byRegistration = Employee::query()->whereNotNull('registration_number')->get(['id', 'registration_number', 'name', 'employment_status'])->keyBy('registration_number');
         $codes = $this->storedCodes($period);
-        [$kept, $replaced] = $this->storedEntries($period, $overtimeType);
+        [$kept, $replaced] = $this->storedEntries($period, $overtimeType, $category);
 
         // 1. Periksa isi setiap baris.
         $rows = [];
@@ -50,7 +56,7 @@ class OvertimeImportChecker
                 'row' => $fileRow['row'], 'employee_id' => null, 'registration_number' => $fileRow['registration_number'], 'name' => null,
                 'status' => 'benar', 'errors' => [], 'warnings' => [], 'conflicts' => [],
             ];
-            $entry = $this->parseRow($result, $fileRow, $period, $employees, $byRegistration);
+            $entry = $this->parseRow($result, $fileRow, $period, $overtimeType, $category, $employees, $byRegistration);
             if ($entry !== null) {
                 $parsed[$index] = $entry;
             }
@@ -58,6 +64,7 @@ class OvertimeImportChecker
         }
 
         // 2. Tumpang tindih & kode daftar hadir.
+        $skipped = [];   // index baris yang sama persis dengan lembur manual / mobile tersimpan
         foreach ($parsed as $index => $entry) {
             foreach ($parsed as $otherIndex => $other) {
                 if ($otherIndex < $index && $other['employee_id'] === $entry['employee_id'] && $other['date'] === $entry['date'] && OvertimeRules::overlaps($entry, $other)) {
@@ -67,6 +74,12 @@ class OvertimeImportChecker
 
             foreach ($kept[$entry['employee_id']] ?? [] as $stored) {
                 if ($stored['date'] !== $entry['date'] || ! OvertimeRules::overlaps($entry, $stored)) {
+                    continue;
+                }
+                if (self::isSameStoredEntry($entry, $stored, $overtimeType)) {
+                    $skipped[$index] = true;
+                    $this->add($rows[$index], 'warnings', 'Jam Mulai', 'Sama dengan '.self::typeLabel($stored['overtime_type'])." {$stored['source']} tersimpan; baris ini dilewati (data tersimpan tetap dipakai)");
+
                     continue;
                 }
                 // Jenis lain (sumber apa pun) atau jenis sama dari manual / mobile: keduanya tidak boleh ditimpa.
@@ -86,7 +99,7 @@ class OvertimeImportChecker
 
         // 3. Batas jam per hari / minggu dari baris yang akan disimpan + lembur tersimpan yang tetap ada.
         $rules = OvertimeRules::make();
-        $toSave = array_filter($parsed, fn (array $entry, int $index) => $rows[$index]['errors'] === [], ARRAY_FILTER_USE_BOTH);
+        $toSave = array_filter($parsed, fn (array $entry, int $index) => $rows[$index]['errors'] === [] && ! isset($skipped[$index]), ARRAY_FILTER_USE_BOTH);
         $perEmployee = [];
         foreach ([...array_values($toSave), ...array_merge([], ...array_values($kept))] as $entry) {
             $perEmployee[$entry['employee_id']][] = $entry;
@@ -109,7 +122,7 @@ class OvertimeImportChecker
                 'will_create' => count($toSave),
                 'will_update' => 0,
                 'will_delete' => $replaced,
-                'unchanged' => 0,
+                'unchanged' => count(array_filter(array_keys($skipped), fn (int $index) => $rows[$index]['status'] !== 'salah')),
             ],
             'entries' => array_values($toSave),
             'conflicts' => [],
@@ -140,7 +153,7 @@ class OvertimeImportChecker
      * @param  Collection<string, PeriodEmployee>  $employees
      * @param  Collection<string, Employee>  $byRegistration
      */
-    private function parseRow(array &$result, array $fileRow, AttendancePeriod $period, Collection $employees, Collection $byRegistration): ?array
+    private function parseRow(array &$result, array $fileRow, AttendancePeriod $period, OvertimeType $overtimeType, EmployeeCategory $category, Collection $employees, Collection $byRegistration): ?array
     {
         $employee = null;
         $registration = $fileRow['registration_number'];
@@ -151,8 +164,13 @@ class OvertimeImportChecker
         } else {
             $result['employee_id'] = $found->id;
             $result['name'] = $found->name;
-            if (! $found->hasDailyWage()) {
+            $foundCategory = EmployeeCategory::of($found);
+            if ($foundCategory === null) {
                 $this->add($result, 'errors', 'No. Registrasi', 'Bukan karyawan Casual / Daily Worker');
+            } elseif ($overtimeType === OvertimeType::DailyWorker && ! $foundCategory->allowsDw()) {
+                $this->add($result, 'errors', 'No. Registrasi', EmployeeCategory::DW_ONLY_CASUAL_MESSAGE);
+            } elseif ($foundCategory !== $category) {
+                $this->add($result, 'errors', 'No. Registrasi', $foundCategory->wrongTabMessage());
             } elseif (! $employees->has($found->id)) {
                 $this->add($result, 'errors', 'No. Registrasi', 'Karyawan tidak aktif dalam periode '.$period->label());
             } else {
@@ -218,15 +236,17 @@ class OvertimeImportChecker
 
     /**
      * Lembur tersimpan di minggu-minggu yang menyentuh periode:
-     *   kept      = yang TETAP ADA sesudah unggah (jenis lain, sumber mobile/manual, atau di luar periode)
-     *   replaced  = jumlah lembur jenis ini dari sumber yang diganti (replacedSources) di dalam periode
+     *   kept      = yang TETAP ADA sesudah unggah (jenis lain, sumber mobile/manual, kategori lain, atau di luar periode)
+     *   replaced  = jumlah lembur jenis ini milik karyawan kategori itu dari sumber yang diganti (replacedSources)
+     *               di dalam periode
      *
      * @return array{0: array<string, list<array>>, 1: int}
      */
-    private function storedEntries(AttendancePeriod $period, OvertimeType $type): array
+    private function storedEntries(AttendancePeriod $period, OvertimeType $type, EmployeeCategory $category): array
     {
         [$from, $to] = OvertimeRules::weekBounds($period);
         $replacedSources = self::replacedSources($type);
+        $categoryIds = Employee::query()->where('employment_status', $category->employmentStatus())->pluck('id')->flip();
         $kept = [];
         $replaced = 0;
 
@@ -234,9 +254,10 @@ class OvertimeImportChecker
             ->where('date', '>=', $from)
             ->where('date', '<', Carbon::parse($to)->addDay()->toDateString())
             ->get(['employee_id', 'date', 'start_time', 'end_time', 'overtime_type', 'source'])
-            ->each(function (OvertimeEntry $entry) use (&$kept, &$replaced, $period, $type, $replacedSources) {
+            ->each(function (OvertimeEntry $entry) use (&$kept, &$replaced, $period, $type, $replacedSources, $categoryIds) {
                 $isReplaced = $entry->overtime_type === $type
                     && in_array($entry->source, $replacedSources, true)
+                    && $categoryIds->has($entry->employee_id)
                     && $period->contains($entry->date);
                 if ($isReplaced) {
                     $replaced++;
@@ -254,6 +275,18 @@ class OvertimeImportChecker
             });
 
         return [$kept, $replaced];
+    }
+
+    /**
+     * Baris file = lembur tersimpan jenis sama dari manual / mobile (yang tidak diganti unggahan), jam persis sama?
+     * Jenis lain tetap dianggap tumpang tindih (salah).
+     */
+    private static function isSameStoredEntry(array $entry, array $stored, OvertimeType $type): bool
+    {
+        return $stored['overtime_type'] === $type->value
+            && in_array($stored['source'], [OvertimeSource::Manual->value, OvertimeSource::Mobile->value], true)
+            && $stored['start_time'] === $entry['start_time']
+            && $stored['end_time'] === $entry['end_time'];
     }
 
     private static function typeLabel(string $overtimeType): string

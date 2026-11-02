@@ -39,8 +39,8 @@ class TemplateRecapTest extends TestCase
 
         $this->assertSame(['Daftar Hadir', 'Rekap', 'Petunjuk', 'Daftar'], $spreadsheet->getSheetNames());
         $this->assertSame(
-            ['No. Registrasi', 'Nama', 'Gaji Pokok', 'Tarif / Hari', 'K', 'DW', 'S', 'I', 'C', 'M', 'L', 'Upah Hari Kerja', 'Upah DW'],
-            array_map(fn (string $column) => $recap->getCell("{$column}4")->getValue(), ['C', 'D', 'H', 'J', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U']),
+            ['No. Registrasi', 'Nama', 'Gaji Pokok', 'Tarif / Hari', 'K', 'DW', 'S', 'I', 'C', 'M', 'L', 'Upah Hari Kerja', 'Upah DW', 'Tarif / Jam', 'Jam Lembur DW Dibutuhkan', 'Keterangan'],
+            array_map(fn (string $column) => $recap->getCell("{$column}4")->getValue(), ['C', 'D', 'H', 'J', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X']),
         );
 
         $payroll = $this->payrollRows();
@@ -49,20 +49,32 @@ class TemplateRecapTest extends TestCase
         $this->assertSame($payroll['Ani']['base_pay'], $this->value($recap, "T{$ani}"));   // 22 × 100.000 (tidak dibatasi; K diberi warna merah)
         $this->assertSame(2_200_000, $payroll['Ani']['base_pay']);
         $this->assertSame(300_000, $this->value($recap, "U{$ani}"));                        // 3 × 2.600.000 ÷ 26
-        $this->assertSame('K 22 melebihi batas 20 hari', $recap->getCell("V{$ani}")->getCalculatedValue());
+        $this->assertSame('K 22 melebihi batas 20 hari', $recap->getCell("X{$ani}")->getCalculatedValue());
+
+        // Jam lembur DW dibutuhkan = Upah DW ÷ Tarif/jam = 300.000 ÷ 15.029 = 19,96 (2 angka di belakang koma).
+        $pay = DwPay::make();
+        $scheme = $this->ani->wageSchemes()->first();
+        $this->assertSame([$pay->hourlyRate($scheme), 19.96], $this->values($recap, $ani, ['V', 'W']));
 
         // Jumlah K yang melebihi batas hari berwarna merah (conditional formatting kolom K rekap).
-        $condition = $recap->getConditionalStyles('M5:M7')[0];
+        $condition = $recap->getConditionalStyles('M5:M6')[0];   // Casual: Ani & Cici
         $this->assertSame(['AND($K5<>"",$M5>$K5)'], $condition->getConditions());
         $this->assertSame(AttendanceListTemplateWorkbook::CODE_COLORS['M'][0], $condition->getStyle()->getFill()->getStartColor()->getRGB());
 
-        $budi = $this->recapRow($recap, 'A', $this->budi->id);
-        $this->assertSame($payroll['Budi']['base_pay'], $this->value($recap, "T{$budi}"));   // Flat Bulanan prorata 15/31
+        // Budi (Daily Worker) ada di template kategori Daily Worker; rekapnya tanpa kolom DW.
+        $dailyWorkerRecap = $this->template('daftar_hadir', '2026-10', 'daily_worker')->getSheetByName(TemplateRecapSheet::SHEET_TITLE);
+        $this->assertSame(
+            ['K', 'S', 'I', 'C', 'M', 'L', 'Upah Hari Kerja', 'Keterangan', null],
+            array_map(fn (string $column) => $dailyWorkerRecap->getCell("{$column}4")->getValue(), ['M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U']),
+        );
+        $budi = $this->recapRow($dailyWorkerRecap, 'A', $this->budi->id);
+        $this->assertSame($payroll['Budi']['base_pay'], $this->value($dailyWorkerRecap, "S{$budi}"));   // Flat Bulanan prorata 15/31
         $cici = $this->recapRow($recap, 'A', $this->cici->id);
-        $this->assertSame([0, 'Skema upah belum diatur'], [$this->value($recap, "T{$cici}"), $recap->getCell("V{$cici}")->getCalculatedValue()]);
+        $this->assertSame([0, 'Skema upah belum diatur'], [$this->value($recap, "T{$cici}"), $recap->getCell("X{$cici}")->getCalculatedValue()]);
+        $this->assertSame([0, 0], $this->values($recap, $cici, ['U', 'W']));   // tanpa skema / tanpa DW = 0 jam
 
         $total = $this->recapRow($recap, 'B', 'JUMLAH');
-        $this->assertSame($payroll['Ani']['base_pay'] + $payroll['Budi']['base_pay'], $this->value($recap, "T{$total}"));
+        $this->assertSame($payroll['Ani']['base_pay'] + $payroll['Cici']['base_pay'], $this->value($recap, "T{$total}"));
         $this->assertTrue($recap->getProtection()->getSheet());
         $this->assertFalse($recap->getColumnDimension('A')->getVisible());   // ID Sistem disembunyikan
     }
@@ -93,8 +105,10 @@ class TemplateRecapTest extends TestCase
         $expected = DwPay::make()->payForMinutes($this->ani->wageSchemes()->first(), 180);   // 3 jam pada satu tanggal
         $this->assertSame([3, $expected], $this->values($recap, $ani, ['H', 'I']));
 
-        $budi = $this->recapRow($recap, 'B', '7530');
-        $this->assertSame([0, 0], $this->values($recap, $budi, ['H', 'I']));
+        // Budi (Daily Worker) hanya ada di template kategori Daily Worker.
+        $dailyWorkerRecap = $this->template('lembur_reguler', '2026-10', 'daily_worker')->getSheetByName(TemplateRecapSheet::SHEET_TITLE);
+        $budi = $this->recapRow($dailyWorkerRecap, 'B', '7530');
+        $this->assertSame([0, 0], $this->values($dailyWorkerRecap, $budi, ['H', 'I']));
         $cici = $this->recapRow($recap, 'B', '8001');
         $this->assertSame([0, 'Skema upah belum diatur'], [$this->value($recap, "I{$cici}"), $recap->getCell("J{$cici}")->getValue()]);
     }

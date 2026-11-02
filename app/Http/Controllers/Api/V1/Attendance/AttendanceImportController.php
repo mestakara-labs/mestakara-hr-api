@@ -5,8 +5,8 @@ namespace App\Http\Controllers\Api\V1\Attendance;
 use App\Enums\AttendanceImportType;
 use App\Enums\ImportBatchStatus;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Attendance\AttendanceCategoryRequest;
 use App\Http\Requests\Attendance\AttendanceImportRequest;
-use App\Http\Requests\Attendance\AttendancePeriodRequest;
 use App\Http\Requests\Attendance\AttendanceTemplateRequest;
 use App\Models\AttendanceImportBatch;
 use App\Services\Attendance\AttendanceImportService;
@@ -15,10 +15,12 @@ use Illuminate\Http\JsonResponse;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
 
 /**
- * Unggah Absensi (3 tab: Daftar Hadir, Lembur Reguler, Lembur DW).
+ * Unggah Absensi per KATEGORI KARYAWAN (employee_category wajib di semua endpoint):
+ *   Casual        3 tab: Daftar Hadir, Lembur Reguler, Lembur DW
+ *   Daily Worker  2 tab: Daftar Hadir, Lembur Reguler (Lembur DW hanya untuk Casual -> 422)
  *
- *   GET  /attendance-imports?period=           status periode + riwayat unggahan per jenis
- *   GET  /attendance-imports/template?period=&type=   file .xlsx (bukan JSON)
+ *   GET  /attendance-imports?period=&employee_category=                status periode + riwayat unggahan per jenis
+ *   GET  /attendance-imports/template?period=&type=&employee_category=  file .xlsx (bukan JSON)
  *   POST /attendance-imports/preview           periksa file, TIDAK menyimpan
  *   POST /attendance-imports                   simpan (422 kalau ada baris salah, 423 kalau periode dikunci)
  *
@@ -31,23 +33,27 @@ class AttendanceImportController extends Controller
     /**
      * Riwayat unggahan per periode
      *
-     * `sections` selalu 3, urut: daftar_hadir, lembur_reguler, lembur_dw. `batches` terbaru dulu.
+     * `sections` per kategori: Casual = daftar_hadir, lembur_reguler, lembur_dw; Daily Worker = daftar_hadir,
+     * lembur_reguler. `entry_count` & `batches` hanya milik kategori itu; `batches` terbaru dulu.
      */
-    public function index(AttendancePeriodRequest $request): JsonResponse
+    public function index(AttendanceCategoryRequest $request): JsonResponse
     {
         $period = $request->period();
+        $category = $request->employeeCategory();
         $batches = AttendanceImportBatch::query()
             ->with('uploader:id,name')
             ->where('period', $period->period)
+            ->where('employee_category', $category)
             ->orderByDesc('created_at')
             ->orderByDesc('id')
             ->get()
             ->groupBy(fn (AttendanceImportBatch $batch) => $batch->import_type->value);
-        $entryCounts = $this->importService->entryCounts($period);
+        $entryCounts = $this->importService->entryCounts($period, $category);
 
         return ApiResponse::success([
             'period' => $period->period,
             'period_status' => $period->status()->value,
+            'employee_category' => $category->value,
             'sections' => array_map(fn (AttendanceImportType $type) => [
                 'import_type' => $type->value,
                 /** Jumlah data SEMUA sumber: daftar hadir = karyawan yang punya kode; lembur = baris lembur. */
@@ -55,7 +61,7 @@ class AttendanceImportController extends Controller
                 'active_batch' => ($active = ($batches[$type->value] ?? collect())->first(fn (AttendanceImportBatch $batch) => $batch->status === ImportBatchStatus::Active))
                     ? self::batch($active) : null,
                 'batches' => ($batches[$type->value] ?? collect())->map(fn (AttendanceImportBatch $batch) => self::batch($batch))->values(),
-            ], AttendanceImportType::cases()),
+            ], $category->importTypes()),
         ], 'Riwayat unggahan absensi.');
     }
 
@@ -68,8 +74,9 @@ class AttendanceImportController extends Controller
     {
         $period = $request->period();
         $type = $request->importType();
-        $path = $this->importService->template($period, $type);
-        $fileName = $this->importService->templateFileName($period, $type);
+        $category = $request->employeeCategory();
+        $path = $this->importService->template($period, $type, $category);
+        $fileName = $this->importService->templateFileName($period, $type, $category);
 
         return response()
             ->file($path, [
@@ -86,7 +93,7 @@ class AttendanceImportController extends Controller
      */
     public function preview(AttendanceImportRequest $request): JsonResponse
     {
-        $result = $this->importService->preview($request->period(), $request->importType(), $request->file('file'));
+        $result = $this->importService->preview($request->period(), $request->importType(), $request->employeeCategory(), $request->file('file'));
 
         return ApiResponse::success($result, 'Pratinjau unggahan.');
     }
@@ -94,11 +101,12 @@ class AttendanceImportController extends Controller
     /**
      * Simpan unggahan
      *
-     * Menggantikan data hasil unggahan sebelumnya jenis itu pada periode itu. Data mobile / manual tidak ditimpa.
+     * Menggantikan data hasil unggahan sebelumnya jenis itu pada periode itu, HANYA milik karyawan kategori itu.
+     * Data mobile / manual tidak ditimpa.
      */
     public function store(AttendanceImportRequest $request): JsonResponse
     {
-        $result = $this->importService->store($request->period(), $request->importType(), $request->file('file'));
+        $result = $this->importService->store($request->period(), $request->importType(), $request->employeeCategory(), $request->file('file'));
 
         return ApiResponse::success([
             'batch' => self::batch($result['batch']),
@@ -112,6 +120,7 @@ class AttendanceImportController extends Controller
         return [
             'id' => $batch->id,
             'import_type' => $batch->import_type->value,
+            'employee_category' => $batch->employee_category->value,
             'status' => $batch->status->value,
             'file_name' => $batch->file_name,
             'uploaded_by' => $batch->uploader?->name,

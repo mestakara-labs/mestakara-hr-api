@@ -2007,21 +2007,6 @@
     "decree_date": null
   },
   {
-    "registration_number": null,
-    "nik": null,
-    "name": "DIANA ANDRIANI",
-    "position_code": "JAB-183",
-    "sub_unit": "AFD03",
-    "placement_objects": [
-      "Bosscha Space"
-    ],
-    "assignment_status": "Definitif",
-    "start_date": "2026-10-01",
-    "decree_type": null,
-    "decree_number": null,
-    "decree_date": null
-  },
-  {
     "registration_number": "01110679040614",
     "nik": "8006950",
     "name": "DIDA INDRAWAN",
@@ -2904,7 +2889,7 @@
   {
     "registration_number": "760649",
     "nik": null,
-    "name": "HAFIZHAH HAURA",
+    "name": "HAFIZAH NAURA",
     "position_code": "JAB-171",
     "sub_unit": "AFD04",
     "placement_objects": [
@@ -5288,21 +5273,6 @@
     "decree_date": null
   },
   {
-    "registration_number": null,
-    "nik": null,
-    "name": "NENI MARDIANA SARI",
-    "position_code": "JAB-181",
-    "sub_unit": "AFD03",
-    "placement_objects": [
-      "Dusun Bambu"
-    ],
-    "assignment_status": "Definitif",
-    "start_date": "2026-10-01",
-    "decree_type": null,
-    "decree_number": null,
-    "decree_date": null
-  },
-  {
     "registration_number": "01109873033145",
     "nik": "8005362",
     "name": "NENTY MULYAWATI",
@@ -5337,21 +5307,6 @@
     "placement_objects": [],
     "assignment_status": "Definitif",
     "start_date": "2020-01-01",
-    "decree_type": null,
-    "decree_number": null,
-    "decree_date": null
-  },
-  {
-    "registration_number": null,
-    "nik": null,
-    "name": "NINING WIDIAWATI",
-    "position_code": "JAB-181",
-    "sub_unit": "AFD03",
-    "placement_objects": [
-      "Dusun Bambu"
-    ],
-    "assignment_status": "Definitif",
-    "start_date": "2026-10-01",
     "decree_type": null,
     "decree_number": null,
     "decree_date": null

@@ -3,6 +3,7 @@
 namespace App\Services\Attendance;
 
 use App\Enums\AttendanceImportType;
+use App\Enums\EmployeeCategory;
 use App\Models\OvertimeEntry;
 use App\Models\OvertimeSetting;
 use App\Services\Employee\EmployeeExportWorkbook;
@@ -45,7 +46,7 @@ class OvertimeTemplateWorkbook
      * @param  Collection<string, PeriodEmployee>  $employees  karyawan yang dihitung dalam periode
      * @param  Collection<int, OvertimeEntry>  $entries  lembur jenis itu yang tersimpan (dengan relasi employee)
      */
-    public function write(AttendancePeriod $period, AttendanceImportType $type, Collection $employees, Collection $entries): string
+    public function write(AttendancePeriod $period, AttendanceImportType $type, EmployeeCategory $category, Collection $employees, Collection $entries): string
     {
         $spreadsheet = new Spreadsheet;
         $spreadsheet->getDefaultStyle()->getFont()->setName(DocumentStyle::FONT)->setSize(DocumentStyle::FONT_SIZE);
@@ -55,7 +56,7 @@ class OvertimeTemplateWorkbook
         $lastRow = $first + $entries->count() + OvertimeLayout::BLANK_ROWS - 1;
         $lastColumn = OvertimeLayout::lastLetter();
 
-        $this->writeHeader($sheet, $period, $type, $lastColumn);
+        $this->writeHeader($sheet, $period, $type, $category, $lastColumn);
         TemplateFilterRow::apply($sheet, OvertimeLayout::FILTER_ROW, OvertimeLayout::HEADER_ROW, $lastColumn);
         $this->writeRows($sheet, $entries->values(), $lastRow);
         $this->styleBody($sheet, $period, $lastColumn, $lastRow);
@@ -79,9 +80,10 @@ class OvertimeTemplateWorkbook
         return $path;
     }
 
-    private function writeHeader(Worksheet $sheet, AttendancePeriod $period, AttendanceImportType $type, string $lastColumn): void
+    private function writeHeader(Worksheet $sheet, AttendancePeriod $period, AttendanceImportType $type, EmployeeCategory $category, string $lastColumn): void
     {
-        $title = mb_strtoupper(OvertimeLayout::sheetTitle($type)).' KARYAWAN CASUAL & DAILY WORKER — UNIT AGROWISATA — Periode: '.$period->label();
+        // Judul per kategori, mis. "LEMBUR REGULER KARYAWAN DAILY WORKER — UNIT AGROWISATA — Periode: Oktober 2026".
+        $title = mb_strtoupper(OvertimeLayout::sheetTitle($type).' '.$category->label()).' — UNIT AGROWISATA — Periode: '.$period->label();
         $sheet->setCellValue('A'.OvertimeLayout::TITLE_ROW, $title);
         $sheet->mergeCells("A1:{$lastColumn}1");
         $sheet->getStyle('A1')->getFont()->setBold(true)->setSize(12);

@@ -3,6 +3,7 @@
 namespace App\Services\Attendance;
 
 use App\Enums\AttendanceImportType;
+use App\Enums\EmployeeCategory;
 use App\Enums\ImportBatchStatus;
 use App\Enums\OvertimeType;
 use App\Models\AttendanceDay;
@@ -16,8 +17,8 @@ use Illuminate\Support\Carbon;
 /**
  * DATA BACA halaman Unggah Absensi:
  *
- *   summaries()      tab Daftar Hadir: per karyawan jumlah kode, hari kosong, lembur, konflik, peringatan
- *   overtimeList()   tab Lembur Reguler / Lembur DW: semua lembur jenis itu + peringatannya
+ *   summaries()      tab Daftar Hadir: per karyawan kategori itu jumlah kode, hari kosong, lembur, konflik, peringatan
+ *   overtimeList()   tab Lembur Reguler / Lembur DW: semua lembur jenis itu milik karyawan kategori itu + peringatannya
  *   employeeDetail() detail satu karyawan: setiap tanggal periode, lembur, dan jejak perubahan
  */
 class AttendanceOverview
@@ -28,14 +29,15 @@ class AttendanceOverview
     ) {}
 
     /** @return list<array> */
-    public function summaries(AttendancePeriod $period): array
+    public function summaries(AttendancePeriod $period, EmployeeCategory $category): array
     {
-        $employees = $this->attendanceEmployees->forPeriod($period);
+        $employees = $this->attendanceEmployees->forPeriod($period, $category);
         $summary = $this->summaryService->forPeriod($period->period, $employees->keys());
         $codedDates = $this->codesByEmployee($period);
         $conflicts = AttendanceImportConflict::query()
             ->whereHas('batch', fn ($query) => $query->where('period', $period->period)
                 ->where('import_type', AttendanceImportType::AttendanceList)
+                ->where('employee_category', $category)
                 ->where('status', ImportBatchStatus::Active))
             ->selectRaw('employee_id, count(*) as total')
             ->groupBy('employee_id')
@@ -73,9 +75,10 @@ class AttendanceOverview
     }
 
     /** @return list<array> */
-    public function overtimeList(AttendancePeriod $period, OvertimeType $type): array
+    public function overtimeList(AttendancePeriod $period, OvertimeType $type, EmployeeCategory $category): array
     {
-        $employees = $this->attendanceEmployees->forPeriod($period);
+        $employees = $this->attendanceEmployees->forPeriod($period, $category);
+        $status = $category->employmentStatus()->value;
         $codes = $this->codesByEmployee($period);
         [$from, $to] = OvertimeRules::weekBounds($period);
         $all = OvertimeEntry::query()
@@ -92,7 +95,8 @@ class AttendanceOverview
         $rules = OvertimeRules::make();
 
         return $all
-            ->filter(fn (OvertimeEntry $entry) => $entry->overtime_type === $type && $period->contains($entry->date))
+            ->filter(fn (OvertimeEntry $entry) => $entry->overtime_type === $type && $period->contains($entry->date)
+                && $entry->employee->employment_status === $status)
             ->sortBy(fn (OvertimeEntry $entry) => [$entry->date->toDateString(), $entry->employee->name, $entry->start_time])
             ->map(function (OvertimeEntry $entry) use ($employees, $codes, $perEmployee, $rules) {
                 $date = $entry->date->toDateString();

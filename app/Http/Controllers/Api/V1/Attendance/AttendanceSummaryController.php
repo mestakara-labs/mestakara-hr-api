@@ -3,15 +3,16 @@
 namespace App\Http\Controllers\Api\V1\Attendance;
 
 use App\Http\Controllers\Controller;
-use App\Http\Requests\Attendance\AttendancePeriodRequest;
+use App\Http\Requests\Attendance\AttendanceCategoryRequest;
 use App\Services\Attendance\AttendanceOverview;
 use App\Support\ApiResponse;
 use Illuminate\Http\JsonResponse;
 
 /**
- * Tab Daftar Hadir: ringkasan absensi per karyawan Casual & DW yang aktif dalam periode.
+ * Tab Daftar Hadir: ringkasan absensi per karyawan kategori itu (Casual / Daily Worker) yang aktif dalam periode.
  *
- *   GET /attendance-summaries?period=YYYY-MM
+ *   GET /attendance-summaries?period=YYYY-MM&employee_category=casual|daily_worker
+ *   (Daily Worker: regular_overtime terisi, dw_overtime selalu 0)
  */
 class AttendanceSummaryController extends Controller
 {
@@ -20,8 +21,8 @@ class AttendanceSummaryController extends Controller
      *
      * Per karyawan: jumlah kode, hari aktif tanpa kode, total lembur reguler & DW, jumlah konflik, peringatan.
      */
-    public function __invoke(AttendancePeriodRequest $request, AttendanceOverview $overview): JsonResponse
+    public function __invoke(AttendanceCategoryRequest $request, AttendanceOverview $overview): JsonResponse
     {
-        return ApiResponse::success($overview->summaries($request->period()), 'Ringkasan daftar hadir.');
+        return ApiResponse::success($overview->summaries($request->period(), $request->employeeCategory()), 'Ringkasan daftar hadir.');
     }
 }

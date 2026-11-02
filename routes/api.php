@@ -199,7 +199,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/payroll/unlock', [PayrollController::class, 'unlock']);
     Route::put('/payroll/deductions', [PayrollDeductionController::class, 'update']);
     Route::post('/payroll/deductions/copy-previous', [PayrollDeductionController::class, 'copyPrevious']);
-    Route::get('/payroll/export', [PayrollExportController::class, 'payroll']);
-    Route::get('/payroll/spkl', [PayrollExportController::class, 'spkl']);
+    // Satu endpoint ekspor: Daftar Upah, Payroll, SPKL (lihat PayrollExportRequest).
+    Route::get('/payroll/export', PayrollExportController::class);
 
 });

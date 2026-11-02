@@ -2,7 +2,9 @@
 
 namespace App\Services\Attendance;
 
+use App\Enums\AttendanceCode;
 use App\Enums\AttendanceImportType;
+use App\Enums\EmployeeCategory;
 use App\Enums\ImportBatchStatus;
 use App\Enums\OvertimeChangeAction;
 use App\Enums\OvertimeSource;
@@ -32,7 +34,7 @@ class DwRecommendationService
 
     public const SKIP_NO_DW_DAYS = 'Tidak ada hari DW di daftar hadir';
 
-    public const SKIP_NOT_COUNTED = 'Bukan karyawan Casual / Daily Worker yang aktif dalam periode ini';
+    public const SKIP_NOT_COUNTED = 'Bukan karyawan Casual yang aktif dalam periode ini';
 
     public const REPLACED_REASON = 'Diganti rekomendasi sistem';
 
@@ -51,7 +53,7 @@ class DwRecommendationService
         $pay = DwPay::make();
 
         $ids = $employeeIds ?: $data->employees->keys()->filter(fn (string $id) => $data->dwDays($id) > 0)->values()->all();
-        $names = Employee::query()->whereKey($ids)->get(['id', 'registration_number', 'name'])->keyBy('id');
+        $names = Employee::query()->whereKey($ids)->get(['id', 'registration_number', 'name', 'employment_status'])->keyBy('id');
 
         $rows = array_map(fn (string $id) => $this->previewEmployee($data, $pay, $id, $names->get($id)), $ids);
         $counted = array_filter($rows, fn (array $row) => $row['skipped_reason'] === null);
@@ -122,6 +124,14 @@ class DwRecommendationService
         });
     }
 
+    /** Alasan karyawan tidak dihitung: Daily Worker -> "Lembur DW hanya untuk karyawan Casual". */
+    private static function notCountedReason(?Employee $employee): string
+    {
+        return $employee !== null && EmployeeCategory::of($employee) === EmployeeCategory::DailyWorker
+            ? EmployeeCategory::DW_ONLY_CASUAL_MESSAGE
+            : self::SKIP_NOT_COUNTED;
+    }
+
     private function previewEmployee(DwPeriodData $data, DwPay $pay, string $id, ?Employee $employee): array
     {
         $item = $data->employees->get($id);
@@ -155,7 +165,7 @@ class DwRecommendationService
         }
 
         $row['skipped_reason'] = match (true) {
-            $item === null => self::SKIP_NOT_COUNTED,
+            $item === null => self::notCountedReason($employee),
             $scheme === null => self::SKIP_NO_SCHEME,
             $row['dw_days'] === 0 => self::SKIP_NO_DW_DAYS,
             default => null,
@@ -168,8 +178,10 @@ class DwRecommendationService
             return $row;
         }
 
+        $candidates = $data->candidateDates($item);
+        $dwDates = array_values(array_filter($candidates, fn (string $date) => ($data->codes[$id][$date] ?? null) === AttendanceCode::DailyWorker->value));
         $result = $this->recommender->recommend(
-            $pay, $scheme, $row['target_amount'], $row['kept_pay'], $data->candidateDates($item), $data->fixedEntries($id),
+            $pay, $scheme, $row['target_amount'], $row['kept_pay'], $candidates, $data->fixedEntries($id), $dwDates,
         );
         $start = substr($pay->settings->dw_default_start_time, 0, 5);
         foreach ($result['minutes'] as $date => $minutes) {
@@ -209,7 +221,7 @@ class DwRecommendationService
             $name = $item?->employee->name ?? 'Karyawan';
 
             if ($item === null) {
-                $errors["employees.{$i}"][] = self::SKIP_NOT_COUNTED;
+                $errors["employees.{$i}"][] = self::notCountedReason(Employee::find($id));
 
                 continue;
             }

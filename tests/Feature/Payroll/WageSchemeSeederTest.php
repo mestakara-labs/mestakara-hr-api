@@ -81,15 +81,15 @@ class WageSchemeSeederTest extends TestCase
         // Dibayar lebih dari 20 hari -> tidak dibatasi.
         $this->assertFalse($this->scheme('442')->is_capped);   // BUDI SALAM
 
-        // HAFIZHAH HAURA tercatat di dua sheet; dipakai Malabar (tempat ia dibayar), satu skema saja.
+        // HAFIZAH NAURA tercatat di dua sheet; dipakai Malabar (tempat ia dibayar), satu skema saja.
         $this->assertSame('Malabar', $this->scheme('760649')->payrollGroup->name);
         $this->assertSame(1, $this->employee('760649')->wageSchemes()->count());
 
-        // Baris dua nama: skema untuk keduanya, rekening hanya orang pertama.
-        $diana = Employee::where('name', 'DIANA ANDRIANI')->sole();
-        $this->assertSame(825_000, $diana->wageSchemes()->sole()->operational_position_allowance);
-        $this->assertSame(0, $diana->bankAccounts()->count());
-        $this->assertSame(1, $this->employee('819535')->bankAccounts()->count());   // ASRUL ANAM
+        // Baris dua nama "[karyawan]/[pemegang rekening]": kiri karyawan, kanan atas nama rekening (bukan karyawan).
+        $asrul = $this->employee('819535');
+        $this->assertSame(825_000, $asrul->wageSchemes()->sole()->operational_position_allowance);
+        $this->assertSame('DIANA ANDRIANI', $asrul->bankAccounts()->sole()->account_holder);
+        $this->assertFalse(Employee::where('name', 'DIANA ANDRIANI')->exists());
     }
 
     public function test_running_twice_replaces_only_the_seeded_records(): void

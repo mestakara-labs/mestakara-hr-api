@@ -2,6 +2,7 @@
 
 namespace App\Services\Attendance;
 
+use App\Enums\EmployeeCategory;
 use App\Enums\EmploymentStatus;
 use App\Models\Employee;
 use App\Services\EmployeeStatusService;
@@ -42,16 +43,18 @@ class AttendanceEmployees
     }
 
     /**
-     * Semua karyawan yang dihitung, urut nama, dikunci dengan id karyawan.
+     * Semua karyawan yang dihitung, urut nama, dikunci dengan id karyawan. $category = hanya Casual / hanya Daily
+     * Worker (status karyawan saat ini); null = keduanya.
      *
      * @return Collection<string, PeriodEmployee>
      */
-    public function forPeriod(AttendancePeriod $period): Collection
+    public function forPeriod(AttendancePeriod $period, ?EmployeeCategory $category = null): Collection
     {
-        $employees = $this->loadedEmployees?->filter(fn (Employee $employee) => $employee->hasDailyWage())
+        $statuses = $category === null ? EmploymentStatus::dailyWageValues() : [$category->employmentStatus()->value];
+        $employees = $this->loadedEmployees?->filter(fn (Employee $employee) => in_array($employee->employment_status, $statuses, true))
             ?? Employee::query()
                 ->with(self::RELATIONS)
-                ->whereIn('employment_status', EmploymentStatus::dailyWageValues())
+                ->whereIn('employment_status', $statuses)
                 ->orderBy('name')
                 ->get();
 

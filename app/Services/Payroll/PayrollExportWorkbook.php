@@ -21,20 +21,28 @@ use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
  *   baris 1–2   kop (kiri), judul (tengah), "Bulan : …" / "Hal. : n" (kanan)
  *   baris 3–4   nama kelompok/bidang & sub unit (kode afd)
  *   baris 6–7   judul kolom dua tingkat (HARI KERJA, Tunjangan, Potongan)
- *   baris 8…    data, lalu baris JUMLAH, lalu "<tempat>, <tanggal>" & blok tanda tangan
+ *   baris 8…    per objek penempatan: judul objek, karyawan, JUMLAH objek (abu-abu); lalu JUMLAH TOTAL, lalu
+ *               "<tempat>, <tanggal>" & blok tanda tangan
  *
- * Ditambah sheet REKAP (semua kelompok) dan PAYROLL (rekening). Rupiah tanpa desimal.
+ * Sheet pertama REKAP (kelompok terpilih ditumpuk). Dokumen Payroll: rincian per kelompok berupa tabel satu tingkat
+ * (writeTableSheet, juga dipakai REKAP SPKL), juga dipecah per objek penempatan. Rupiah tanpa desimal.
  */
 class PayrollExportWorkbook
 {
     private const MONEY_FORMAT = '#,##0';
 
+    /** Angka jam: 1,5; 0 tampil "-". */
+    private const HOURS_FORMAT = '#,##0.##;-#,##0.##;"-"';
+
     private const HEADER_FILL = 'D9E1F2';
+
+    /** Latar baris JUMLAH per objek penempatan. */
+    private const SECTION_TOTAL_FILL = 'BFBFBF';
 
     /** Baris pertama judul kolom sheet kelompok. */
     private const GROUP_HEADER_ROW = 6;
 
-    /** Baris judul kolom sheet REKAP & PAYROLL. */
+    /** Baris judul kolom tabel satu tingkat (REKAP & rincian Payroll). */
     private const LIST_HEADER_ROW = 6;
 
     /** Jarak baris nama dari baris jabatan (ruang tanda tangan). */
@@ -53,8 +61,7 @@ class PayrollExportWorkbook
 
             match ($sheetData['type']) {
                 'group' => $this->writeGroup($sheet, $sheetData, $document),
-                'rekap' => $this->writeRekap($sheet, $sheetData, $document),
-                'payroll' => $this->writePayroll($sheet, $sheetData, $document),
+                'rekap', 'list' => $this->writeTableSheet($sheet, $sheetData, $document),
             };
         }
         $spreadsheet->setActiveSheetIndex(0);
@@ -73,20 +80,25 @@ class PayrollExportWorkbook
     private function writeGroup(Worksheet $sheet, array $data, array $document): void
     {
         $columns = PayrollExportDocument::GROUP_COLUMNS;
-        $lastColumn = Coordinate::stringFromColumnIndex(count($columns));
+        $count = count($columns);
+        $lastColumn = Coordinate::stringFromColumnIndex($count);
+        /** Huruf kolom dari kuncinya, mis. 'name' -> C. */
+        $letterOf = fn (string $key) => Coordinate::stringFromColumnIndex(array_search($key, array_column($columns, 0), true) + 1);
         $this->setWidths($sheet, array_map(fn (array $column) => $column[3], $columns));
 
-        // Kop, judul, bulan & halaman.
+        // Kop, judul (kolom F s.d. 5 kolom sebelum terakhir), bulan & halaman (2 kolom sebelum terakhir).
+        $titleUntil = Coordinate::stringFromColumnIndex($count - 5);
+        $monthColumn = Coordinate::stringFromColumnIndex($count - 2);
         $sheet->setCellValue('A1', PayrollExportText::COMPANY);
         $sheet->setCellValue('A2', PayrollExportText::UNIT);
         $sheet->setCellValue('F1', PayrollExportDocument::TITLE);
         $sheet->setCellValue('F2', 'UNIT : AGROWISATA');
-        $sheet->mergeCells('F1:P1');
-        $sheet->mergeCells('F2:P2');
+        $sheet->mergeCells("F1:{$titleUntil}1");
+        $sheet->mergeCells("F2:{$titleUntil}2");
         $sheet->getStyle('F1:F2')->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
-        $sheet->setCellValue('S1', 'Bulan : '.$document['month_label']);
-        $sheet->setCellValue('S2', 'Hal. : '.$data['page']);
-        $sheet->getStyle('A1:U2')->getFont()->setBold(true);
+        $sheet->setCellValue("{$monthColumn}1", 'Bulan : '.$document['month_label']);
+        $sheet->setCellValue("{$monthColumn}2", 'Hal. : '.$data['page']);
+        $sheet->getStyle("A1:{$lastColumn}2")->getFont()->setBold(true);
         $sheet->getStyle('F1')->getFont()->setSize(13);
 
         $sheet->setCellValue('A3', "{$data['group_label']} : {$data['name']}");
@@ -94,7 +106,7 @@ class PayrollExportWorkbook
         if ($data['sub_units'] !== '') {
             $sheet->setCellValue('A4', 'Sub Unit : '.$data['sub_units']);
         }
-        $this->writeDraftMark($sheet, $document, 'S3');
+        $this->writeDraftMark($sheet, $document, "{$monthColumn}3");
 
         // Judul kolom dua tingkat.
         $top = self::GROUP_HEADER_ROW;
@@ -123,25 +135,14 @@ class PayrollExportWorkbook
         }
         $this->styleHeader($sheet, "A{$top}:{$lastColumn}{$bottom}");
 
-        // Data + JUMLAH.
-        $rowNumber = $bottom + 1;
-        foreach ($data['rows'] as $row) {
-            foreach ($columns as $index => [$key]) {
-                self::setValue($sheet, Coordinate::stringFromColumnIndex($index + 1).$rowNumber, $row[$key]);
-            }
-            $rowNumber++;
-        }
-        $totalRow = $rowNumber;
-        $sheet->setCellValue("A{$totalRow}", 'JUMLAH');
-        $sheet->mergeCells("A{$totalRow}:F{$totalRow}");
-        foreach ($columns as $index => [$key]) {
-            if (array_key_exists($key, $data['totals'])) {
-                $sheet->setCellValue(Coordinate::stringFromColumnIndex($index + 1).$totalRow, $data['totals'][$key]);
-            }
-        }
-        $this->styleTable($sheet, $bottom + 1, $totalRow, $lastColumn, array_map(fn (array $column) => $column[4], $columns), ['C']);
-        // Lebar kolom mengikuti tulisan terpanjang (satu baris); Nama, Jabatan & Uraian cost center boleh berlipat.
-        $wrapColumns = ['C' => DocumentStyle::NAME_COLUMN_WIDTH, 'D' => 26, 'F' => 26];
+        // Data per objek penempatan + JUMLAH TOTAL.
+        $keys = array_column($columns, 0);
+        [$totalRow, $sectionRows, $subtotalRows] = $this->writeSections($sheet, $data, $keys, $bottom + 1, PayrollExportDocument::GROUP_LABEL_COLUMNS);
+        $nameLetters = [$letterOf('name')];
+        $this->styleTable($sheet, $bottom + 1, $totalRow, $lastColumn, array_map(fn (array $column) => $column[4], $columns), $nameLetters);
+        $this->styleSections($sheet, $sectionRows, $subtotalRows, $totalRow, $lastColumn);
+        // Lebar kolom mengikuti tulisan terpanjang (satu baris); nama orang, Jabatan & Uraian cost center boleh berlipat.
+        $wrapColumns = [...array_fill_keys($nameLetters, DocumentStyle::NAME_COLUMN_WIDTH), $letterOf('position') => 26, $letterOf('cost_center_name') => 26];
         foreach (array_keys($wrapColumns) as $letter) {
             $sheet->getStyle($letter.($bottom + 1).":{$letter}{$totalRow}")->getAlignment()->setWrapText(true);
         }
@@ -153,23 +154,31 @@ class PayrollExportWorkbook
     }
 
     // -------------------------------------------------------------------------
-    // REKAP & PAYROLL
+    // Tabel satu tingkat: REKAP (semua dokumen) & rincian Payroll per kelompok
     // -------------------------------------------------------------------------
 
-    private function writeRekap(Worksheet $sheet, array $data, array $document): void
+    /**
+     * Kop + judul (heading) + "Bulan : …", untuk rincian Payroll juga "<Kelompok> : <nama>", lalu tabel (columns) +
+     * JUMLAH (label digabung selebar label_span kolom) + tanda tangan. REKAP mendatar, rincian Payroll tegak.
+     */
+    public function writeTableSheet(Worksheet $sheet, array $data, array $document): void
     {
-        $this->writeListTitle($sheet, 'REKAPITULASI '.PayrollExportDocument::TITLE, $document, count(PayrollExportDocument::REKAP_COLUMNS));
-        $totalRow = $this->writeList($sheet, PayrollExportDocument::REKAP_COLUMNS, $data, 'B');
-        $this->writeSignature($sheet, $data['signature'], $totalRow + 2, count(PayrollExportDocument::REKAP_COLUMNS));
-        $this->setupPage($sheet, PageSetup::ORIENTATION_LANDSCAPE, self::LIST_HEADER_ROW, self::LIST_HEADER_ROW);
-    }
+        $columnCount = count($data['columns']);
+        $this->writeListTitle($sheet, $data['heading'], $document, $columnCount);
+        if ($data['type'] === 'list') {
+            $sheet->setCellValue('A5', "{$data['group_label']} : {$data['name']}");
+            $sheet->getStyle('A5')->getFont()->setBold(true);
+        }
 
-    private function writePayroll(Worksheet $sheet, array $data, array $document): void
-    {
-        $this->writeListTitle($sheet, 'PAYROLL '.PayrollExportDocument::TITLE, $document, count(PayrollExportDocument::PAYROLL_COLUMNS));
-        $this->writeList($sheet, PayrollExportDocument::PAYROLL_COLUMNS, $data, 'F', ['name', 'account_name']);
-        $this->setupPage($sheet, PageSetup::ORIENTATION_PORTRAIT, self::LIST_HEADER_ROW, self::LIST_HEADER_ROW);
-        $sheet->freezePane('D'.(self::LIST_HEADER_ROW + 1));
+        $labelUntil = Coordinate::stringFromColumnIndex($data['label_span']);
+        $totalRow = $this->writeList($sheet, $data['columns'], $data, $labelUntil, PayrollExportDocument::NAME_KEYS);
+        $this->writeSignature($sheet, $data['signature'], $totalRow + 2, $columnCount);
+
+        $isRekap = $data['type'] === 'rekap';
+        $this->setupPage($sheet, $isRekap ? PageSetup::ORIENTATION_LANDSCAPE : PageSetup::ORIENTATION_PORTRAIT, self::LIST_HEADER_ROW, self::LIST_HEADER_ROW);
+        if (! $isRekap) {
+            $sheet->freezePane('C'.(self::LIST_HEADER_ROW + 1));
+        }
     }
 
     private function writeListTitle(Worksheet $sheet, string $title, array $document, int $columnCount): void
@@ -190,7 +199,7 @@ class PayrollExportWorkbook
     /**
      * Tabel satu tingkat judul + JUMLAH (label digabung sampai kolom $labelUntil). Mengembalikan nomor baris JUMLAH.
      *
-     * @param  list<array{0: string, 1: string, 2: int, 3: bool}>  $columns
+     * @param  list<array{0: string, 1: string, 2: int, 3: bool|string}>  $columns  format: true = rupiah, 'hours' = jam
      * @param  list<string>  $nameKeys  kolom nama orang: sempit, berlipat, rata kiri
      */
     private function writeList(Worksheet $sheet, array $columns, array $data, string $labelUntil, array $nameKeys = []): int
@@ -204,19 +213,25 @@ class PayrollExportWorkbook
         }
         $this->styleHeader($sheet, "A{$header}:{$lastColumn}{$header}");
 
-        $rowNumber = $header + 1;
-        foreach ($data['rows'] as $row) {
-            foreach ($columns as $index => [$key]) {
-                self::setValue($sheet, Coordinate::stringFromColumnIndex($index + 1).$rowNumber, $row[$key]);
+        $sectionRows = $subtotalRows = [];
+        if (isset($data['sections'])) {
+            // Rincian Payroll: per objek penempatan + JUMLAH TOTAL.
+            [$rowNumber, $sectionRows, $subtotalRows] = $this->writeSections($sheet, $data, array_column($columns, 0), $header + 1, Coordinate::columnIndexFromString($labelUntil));
+        } else {
+            $rowNumber = $header + 1;
+            foreach ($data['rows'] as $row) {
+                foreach ($columns as $index => [$key]) {
+                    self::setValue($sheet, Coordinate::stringFromColumnIndex($index + 1).$rowNumber, $row[$key]);
+                }
+                $rowNumber++;
             }
-            $rowNumber++;
-        }
 
-        $sheet->setCellValue("A{$rowNumber}", 'JUMLAH');
-        $sheet->mergeCells("A{$rowNumber}:{$labelUntil}{$rowNumber}");
-        foreach ($columns as $index => [$key]) {
-            if ($key !== 'no' && array_key_exists($key, $data['totals'])) {
-                $sheet->setCellValue(Coordinate::stringFromColumnIndex($index + 1).$rowNumber, $data['totals'][$key]);
+            $sheet->setCellValue("A{$rowNumber}", 'JUMLAH');
+            $sheet->mergeCells("A{$rowNumber}:{$labelUntil}{$rowNumber}");
+            foreach ($columns as $index => [$key]) {
+                if ($key !== 'no' && array_key_exists($key, $data['totals'])) {
+                    $sheet->setCellValue(Coordinate::stringFromColumnIndex($index + 1).$rowNumber, $data['totals'][$key]);
+                }
             }
         }
         $nameLetters = [];
@@ -226,6 +241,7 @@ class PayrollExportWorkbook
             }
         }
         $this->styleTable($sheet, $header + 1, $rowNumber, $lastColumn, array_map(fn (array $column) => $column[3], $columns), $nameLetters);
+        $this->styleSections($sheet, $sectionRows, $subtotalRows, $rowNumber, $lastColumn);
         // Lebar kolom mengikuti tulisan terpanjang (satu baris); kolom nama (Nama / Atas Nama / Uraian) berlipat.
         $wrapColumns = [];
         foreach ($nameLetters as $letter) {
@@ -235,6 +251,82 @@ class PayrollExportWorkbook
         ExcelColumnFit::apply($sheet, $header, $rowNumber, $wrapColumns);
 
         return $rowNumber;
+    }
+
+    // -------------------------------------------------------------------------
+    // Objek penempatan (sheet kelompok Daftar Upah & rincian Payroll)
+    // -------------------------------------------------------------------------
+
+    /**
+     * Per objek: baris judul objek (digabung kolom 1 s.d. $labelSpan), baris karyawan, baris JUMLAH objek (No = jumlah
+     * karyawan, tulisan JUMLAH digabung kolom 2 s.d. $labelSpan); terakhir baris JUMLAH TOTAL.
+     *
+     * @param  list<string>  $keys  kunci kolom, urut kiri ke kanan
+     * @return array{0: int, 1: list<int>, 2: list<int>} [baris JUMLAH TOTAL, baris judul objek, baris JUMLAH objek]
+     */
+    private function writeSections(Worksheet $sheet, array $data, array $keys, int $firstRow, int $labelSpan): array
+    {
+        $labelUntil = Coordinate::stringFromColumnIndex($labelSpan);
+        $writeTotals = function (int $rowNumber, array $totals) use ($sheet, $keys, $labelSpan): void {
+            foreach ($keys as $index => $key) {
+                if ($index >= $labelSpan && array_key_exists($key, $totals)) {
+                    $sheet->setCellValue(Coordinate::stringFromColumnIndex($index + 1).$rowNumber, $totals[$key]);
+                }
+            }
+        };
+
+        $rowNumber = $firstRow;
+        $sectionRows = $subtotalRows = [];
+        foreach ($data['sections'] as $section) {
+            $sheet->setCellValue("A{$rowNumber}", $section['name']);
+            $sheet->mergeCells("A{$rowNumber}:{$labelUntil}{$rowNumber}");
+            $sectionRows[] = $rowNumber++;
+
+            foreach ($section['rows'] as $row) {
+                foreach ($keys as $index => $key) {
+                    self::setValue($sheet, Coordinate::stringFromColumnIndex($index + 1).$rowNumber, $row[$key]);
+                }
+                $rowNumber++;
+            }
+
+            $sheet->setCellValue("A{$rowNumber}", count($section['rows']));
+            $sheet->setCellValue("B{$rowNumber}", PayrollExportDocument::SECTION_TOTAL_LABEL);
+            $sheet->mergeCells("B{$rowNumber}:{$labelUntil}{$rowNumber}");
+            $writeTotals($rowNumber, $section['totals']);
+            $subtotalRows[] = $rowNumber++;
+        }
+
+        $sheet->setCellValue("A{$rowNumber}", PayrollExportDocument::GRAND_TOTAL_LABEL);
+        $sheet->mergeCells("A{$rowNumber}:{$labelUntil}{$rowNumber}");
+        $writeTotals($rowNumber, $data['totals']);
+
+        return [$rowNumber, $sectionRows, $subtotalRows];
+    }
+
+    /**
+     * Judul objek tebal, bergaris bawah, lebih besar, rata kiri; baris JUMLAH objek tebal berlatar abu-abu;
+     * JUMLAH TOTAL tebal berlatar biru muda (warna judul kolom).
+     *
+     * @param  list<int>  $sectionRows
+     * @param  list<int>  $subtotalRows
+     */
+    private function styleSections(Worksheet $sheet, array $sectionRows, array $subtotalRows, int $totalRow, string $lastColumn): void
+    {
+        foreach ($sectionRows as $row) {
+            $style = $sheet->getStyle("A{$row}:{$lastColumn}{$row}");
+            $style->getFont()->setBold(true)->setUnderline(Font::UNDERLINE_SINGLE)->setSize(DocumentStyle::FONT_SIZE + 2);
+            $style->getAlignment()->setHorizontal(Alignment::HORIZONTAL_LEFT)->setIndent(1);
+            $sheet->getRowDimension($row)->setRowHeight(24);
+        }
+        foreach ($subtotalRows as $row) {
+            $style = $sheet->getStyle("A{$row}:{$lastColumn}{$row}");
+            $style->getFont()->setBold(true);
+            $style->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER)->setIndent(0);
+            $style->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setRGB(self::SECTION_TOTAL_FILL);
+        }
+        if ($sectionRows !== []) {
+            $sheet->getStyle("A{$totalRow}:{$lastColumn}{$totalRow}")->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setRGB(self::HEADER_FILL);
+        }
     }
 
     // -------------------------------------------------------------------------
@@ -343,10 +435,15 @@ class PayrollExportWorkbook
         }
         $sheet->getStyle("A{$totalRow}:{$lastColumn}{$totalRow}")->getFont()->setBold(true);
 
-        foreach ($isMoney as $index => $money) {
-            if ($money) {
+        foreach ($isMoney as $index => $format) {
+            $code = match ($format) {
+                true => self::MONEY_FORMAT,
+                'hours' => self::HOURS_FORMAT,
+                default => null,
+            };
+            if ($code !== null) {
                 $letter = Coordinate::stringFromColumnIndex($index + 1);
-                $sheet->getStyle("{$letter}{$firstRow}:{$letter}{$totalRow}")->getNumberFormat()->setFormatCode(self::MONEY_FORMAT);
+                $sheet->getStyle("{$letter}{$firstRow}:{$letter}{$totalRow}")->getNumberFormat()->setFormatCode($code);
             }
         }
     }

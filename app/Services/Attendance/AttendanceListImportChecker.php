@@ -4,6 +4,7 @@ namespace App\Services\Attendance;
 
 use App\Enums\AttendanceCode;
 use App\Enums\AttendanceSource;
+use App\Enums\EmployeeCategory;
 use App\Models\AttendanceDay;
 use App\Models\Employee;
 use Illuminate\Support\Carbon;
@@ -12,14 +13,16 @@ use Illuminate\Support\Carbon;
  * MEMERIKSA file DAFTAR HADIR (tanpa menyimpan). Hasilnya per baris: status "benar" / "peringatan" / "salah",
  * errors, warnings, conflicts; ditambah RENCANA perubahan per tanggal yang dipakai AttendanceImportService.
  *
- *   SALAH       No. Registrasi tidak ada / bukan Casual-DW / tidak aktif dalam periode; kode di luar daftar;
- *               kode pada tanggal ketika karyawan tidak aktif; baris kembar (karyawan sama)
+ *   SALAH       No. Registrasi tidak ada / bukan Casual-DW / kategori lain (unggah di tab kategorinya) / tidak aktif
+ *               dalam periode; kode di luar daftar; kode DW untuk Daily Worker; kode pada tanggal ketika karyawan tidak
+ *               aktif; baris kembar (karyawan sama)
  *   PERINGATAN  jumlah K melebihi batas hari skema upah; karyawan aktif yang tidak ada di file
  *               (data unggahannya ikut dikosongkan)
  *   KONFLIK     tanggal tersimpan dari mobile / manual yang kodenya berbeda dengan file -> tidak ditimpa
  *
- * Mengunggah ulang MENGGANTIKAN data bersumber import_excel: tanggal yang kosong di file (atau karyawan yang tidak
- * ada di file) dan tersimpan dari import_excel akan dikosongkan.
+ * Mengunggah ulang MENGGANTIKAN data bersumber import_excel milik karyawan KATEGORI ITU: tanggal yang kosong di file
+ * (atau karyawan kategori itu yang tidak ada di file) dan tersimpan dari import_excel akan dikosongkan.
+ * Daily Worker tidak punya batas hari kerja (lihat PeriodEmployee::capDays).
  */
 class AttendanceListImportChecker
 {
@@ -29,9 +32,9 @@ class AttendanceListImportChecker
      * @param  list<array{row: int, employee_id: ?string, registration_number: ?string, name: ?string, codes: array<string, ?string>}>  $fileRows
      * @return array{rows: list<array>, summary: array<string, int>, changes: list<array{employee_id: string, date: string, code: ?string, action: string}>, conflicts: list<array>, unchanged: int}
      */
-    public function check(AttendancePeriod $period, array $fileRows): array
+    public function check(AttendancePeriod $period, EmployeeCategory $category, array $fileRows): array
     {
-        $employees = $this->attendanceEmployees->forPeriod($period);
+        $employees = $this->attendanceEmployees->forPeriod($period, $category);
         $stored = $this->storedDays($period);
         $allEmployees = Employee::all(['id', 'registration_number', 'name', 'employment_status']);
         $byId = $allEmployees->keyBy('id');
@@ -57,8 +60,11 @@ class AttendanceListImportChecker
                 $result['registration_number'] = $employee->registration_number;
                 $result['name'] = $employee->name;
 
-                if (! $employee->hasDailyWage()) {
+                $employeeCategory = EmployeeCategory::of($employee);
+                if ($employeeCategory === null) {
                     $this->error($result, 'No. Registrasi', 'Bukan karyawan Casual / Daily Worker');
+                } elseif ($employeeCategory !== $category) {
+                    $this->error($result, 'No. Registrasi', $employeeCategory->wrongTabMessage());
                 } elseif (! $employees->has($employee->id)) {
                     $this->error($result, 'No. Registrasi', 'Karyawan tidak aktif dalam periode '.$period->label());
                 } elseif (isset($seen[$employee->id])) {
@@ -69,7 +75,7 @@ class AttendanceListImportChecker
             }
 
             $item = $result['errors'] === [] ? $employees->get($employee->id) : null;
-            $codes = $this->checkCodes($result, $fileRow['codes'], $item);
+            $codes = $this->checkCodes($result, $fileRow['codes'], $item, $category);
 
             if ($result['errors'] === [] && $item !== null) {
                 $capDays = $item->capDays();
@@ -123,7 +129,7 @@ class AttendanceListImportChecker
      * @param  array<string, ?string>  $rawCodes
      * @return array<string, ?string>
      */
-    private function checkCodes(array &$result, array $rawCodes, ?PeriodEmployee $item): array
+    private function checkCodes(array &$result, array $rawCodes, ?PeriodEmployee $item, EmployeeCategory $category): array
     {
         $codes = [];
         foreach ($rawCodes as $date => $raw) {
@@ -136,6 +142,8 @@ class AttendanceListImportChecker
             $day = Carbon::parse($date)->day;
             if (AttendanceCode::tryFrom($code) === null) {
                 $this->error($result, "Tgl {$day}", "Kode \"{$raw}\" tidak dikenal (pakai K, DW, I, S, M, C, atau L)");
+            } elseif ($code === AttendanceCode::DailyWorker->value && ! $category->allowsDw()) {
+                $this->error($result, "Tgl {$day}", EmployeeCategory::DW_CODE_ONLY_CASUAL_MESSAGE);
             } elseif ($item !== null && ! $item->isActiveOn($date)) {
                 $this->error($result, "Tgl {$day}", "Karyawan tidak aktif pada tanggal {$day}");
             }

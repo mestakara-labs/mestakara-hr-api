@@ -29,7 +29,7 @@ class OvertimeSetting extends Model
         'rounding' => 100,
         'dw_default_start_time' => '17:00',
         'dw_default_description' => null,   // tidak ada teks bawaan, wajib diisi admin
-        'time_step_minutes' => 30,
+        'time_step_minutes' => 15,
     ];
 
     protected function casts(): array

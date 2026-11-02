@@ -57,9 +57,9 @@ trait AttendanceTestHelpers
         ]);
     }
 
-    protected function template(string $type, string $period = '2026-10'): Spreadsheet
+    protected function template(string $type, string $period = '2026-10', string $category = 'casual'): Spreadsheet
     {
-        $response = $this->get("/api/v1/attendance-imports/template?period={$period}&type={$type}")->assertOk();
+        $response = $this->get("/api/v1/attendance-imports/template?period={$period}&type={$type}&employee_category={$category}")->assertOk();
 
         return $this->spreadsheetOf($response);
     }
@@ -116,14 +116,14 @@ trait AttendanceTestHelpers
         return new UploadedFile($path, 'absensi.xlsx', null, null, true);
     }
 
-    protected function preview(Spreadsheet $spreadsheet, string $type, string $period = '2026-10'): TestResponse
+    protected function preview(Spreadsheet $spreadsheet, string $type, string $period = '2026-10', string $category = 'casual'): TestResponse
     {
-        return $this->postJson('/api/v1/attendance-imports/preview', ['file' => $this->upload($spreadsheet), 'period' => $period, 'type' => $type]);
+        return $this->postJson('/api/v1/attendance-imports/preview', ['file' => $this->upload($spreadsheet), 'period' => $period, 'type' => $type, 'employee_category' => $category]);
     }
 
-    protected function import(Spreadsheet $spreadsheet, string $type, string $period = '2026-10'): TestResponse
+    protected function import(Spreadsheet $spreadsheet, string $type, string $period = '2026-10', string $category = 'casual'): TestResponse
     {
-        return $this->postJson('/api/v1/attendance-imports', ['file' => $this->upload($spreadsheet), 'period' => $period, 'type' => $type]);
+        return $this->postJson('/api/v1/attendance-imports', ['file' => $this->upload($spreadsheet), 'period' => $period, 'type' => $type, 'employee_category' => $category]);
     }
 
     /** Baris pratinjau milik karyawan itu. */

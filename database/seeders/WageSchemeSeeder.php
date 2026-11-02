@@ -21,12 +21,12 @@ use Illuminate\Support\Facades\DB;
  *                Dibatasi 20 hari: kelompok Gunung Mas, F&B Gunung Mas, Petugas Parkir, Atta Awun, Malabar,
  *                Rancabali, Bunut — kecuali yang dibayar lebih dari 20 hari; Bosscha tidak dibatasi
  *                Tunjangan Operasional & Jabatan dan Insentif dari Daftar Upah; tanpa uang makan
- *   kelompok     sheet asal di Daftar Upah (HAFIZHAH HAURA: Malabar, tempat ia dibayar)
+ *   kelompok     sheet asal di Daftar Upah (HAFIZAH NAURA: Malabar, tempat ia dibayar)
  *   cost center  kolom "COST CENTER"; Bosscha (tanpa kolom itu) = 4A44AGR005
- *   rekening     kolom rekening Daftar Upah / sheet PayRoll; atas nama = nama karyawan
+ *   rekening     kolom rekening Daftar Upah / sheet PayRoll; atas nama = nama karyawan, kecuali baris dua nama
  *
- * Baris dua nama (mis. "ASRUL ANAM/Diana Andriani"): skema & cost center untuk keduanya, rekening hanya
- * untuk orang pertama. Semua catatan berlaku mulai 1 Oktober 2026.
+ * Baris dua nama "[nama karyawan]/[nama pemegang rekening]" (mis. "ASRUL ANAM/Diana Andriani"): kiri = karyawan,
+ * kanan = pemegang rekening (atas nama), BUKAN karyawan. Semua catatan berlaku mulai 1 Oktober 2026.
  *
  * Karyawan dicari dari No. Registrasi, lalu nama. Aman dijalankan berulang kali: catatan data awal ditandai
  * NOTES dan hanya catatan itu yang diganti (riwayat buatan aplikasi tidak disentuh).

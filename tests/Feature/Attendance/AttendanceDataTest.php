@@ -52,7 +52,7 @@ class AttendanceDataTest extends TestCase
         $this->storeOvertime($this->ani, '2026-10-01', '17:00', '19:00');
         $this->storeOvertime($this->ani, '2026-10-02', '17:00', '18:30', 'dw');
 
-        $rows = collect($this->getJson('/api/v1/attendance-summaries?period=2026-10')->assertOk()->json('data'))->keyBy('name');
+        $rows = collect($this->getJson('/api/v1/attendance-summaries?period=2026-10&employee_category=casual')->assertOk()->json('data'))->keyBy('name');
 
         $this->assertSame(['Ani', 'Budi'], $rows->keys()->all());
         $ani = $rows['Ani'];
@@ -82,10 +82,10 @@ class AttendanceDataTest extends TestCase
             'cost_center' => ['id' => $costCenter->id, 'code' => '4A44AGR006', 'name' => 'Wahana'],
         ];
 
-        $summary = $this->getJson('/api/v1/attendance-summaries?period=2026-10')->assertOk()->json('data.0');
+        $summary = $this->getJson('/api/v1/attendance-summaries?period=2026-10&employee_category=casual')->assertOk()->json('data.0');
         $this->assertSame($expected, array_intersect_key($summary, $expected));
 
-        $overtime = $this->getJson('/api/v1/overtime-entries?period=2026-10&type=lembur_reguler')->assertOk()->json('data.0');
+        $overtime = $this->getJson('/api/v1/overtime-entries?period=2026-10&type=lembur_reguler&employee_category=casual')->assertOk()->json('data.0');
         $this->assertSame($expected, array_intersect_key($overtime, $expected));
         $this->assertArrayNotHasKey('position', $overtime['employee']);   // sejajar sub_unit, bukan di dalam employee
     }
@@ -126,8 +126,8 @@ class AttendanceDataTest extends TestCase
     {
         DB::flushQueryLog();
         DB::enableQueryLog();
-        $this->getJson('/api/v1/attendance-summaries?period=2026-10')->assertOk();
-        $this->getJson('/api/v1/overtime-entries?period=2026-10&type=lembur_reguler')->assertOk();
+        $this->getJson('/api/v1/attendance-summaries?period=2026-10&employee_category=casual')->assertOk();
+        $this->getJson('/api/v1/overtime-entries?period=2026-10&type=lembur_reguler&employee_category=casual')->assertOk();
         $count = count(DB::getQueryLog());
         DB::disableQueryLog();
 
@@ -140,7 +140,7 @@ class AttendanceDataTest extends TestCase
         $this->storeOvertime($this->ani, '2026-10-07', '22:00', '03:00');
         $this->storeOvertime($this->ani, '2026-10-08', '17:00', '18:00', 'dw');
 
-        $this->getJson('/api/v1/overtime-entries?period=2026-10&type=lembur_reguler')
+        $this->getJson('/api/v1/overtime-entries?period=2026-10&type=lembur_reguler&employee_category=casual')
             ->assertOk()
             ->assertJsonCount(1, 'data')
             ->assertJsonPath('data.0.date', '2026-10-07')
@@ -150,12 +150,12 @@ class AttendanceDataTest extends TestCase
             ->assertJsonPath('data.0.employee.registration_number', '7761')
             ->assertJsonPath('data.0.warnings', ['Lebih dari 4 jam lembur pada tanggal ini (5 jam)', 'Tanggal ini berkode L (Libur) di daftar hadir']);
 
-        $this->getJson('/api/v1/overtime-entries?period=2026-10&type=lembur_dw')
+        $this->getJson('/api/v1/overtime-entries?period=2026-10&type=lembur_dw&employee_category=casual')
             ->assertOk()
             ->assertJsonCount(1, 'data')
             ->assertJsonPath('data.0.warnings', ['Tanggal ini belum berkode di daftar hadir']);
 
-        $this->getJson('/api/v1/overtime-entries?period=2026-10&type=daftar_hadir')->assertUnprocessable();
+        $this->getJson('/api/v1/overtime-entries?period=2026-10&type=daftar_hadir&employee_category=casual')->assertUnprocessable();
     }
 
     public function test_employee_detail_lists_every_date_overtime_and_changes(): void

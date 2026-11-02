@@ -44,7 +44,7 @@
                 <tr>
                     {{-- Kolom kiri & kanan sama lebar supaya judul tepat di tengah kertas; karena itu nama perusahaan disingkat. --}}
                     <td style="width: 36%" class="company nowrap">{{ DocumentStyle::COMPANY_SHORT }}</td>
-                    <td style="width: 28%" class="title">{{ $document['title'] }}</td>
+                    <td style="width: 28%" class="title nowrap">{{ $document['title'] }}</td>
                     <td style="width: 36%" class="right bold nowrap">
                         BULAN : {{ mb_strtoupper($document['month_label']) }}
                         @if ($document['is_draft'])

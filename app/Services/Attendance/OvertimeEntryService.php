@@ -2,6 +2,7 @@
 
 namespace App\Services\Attendance;
 
+use App\Enums\EmployeeCategory;
 use App\Enums\OvertimeChangeAction;
 use App\Enums\OvertimeSource;
 use App\Enums\OvertimeType;
@@ -16,7 +17,8 @@ use Illuminate\Validation\ValidationException;
  * UBAH LEMBUR PER BARIS oleh admin (Lembur Reguler & Lembur DW). Hasilnya selalu bersumber "manual" — baris
  * Excel / rekomendasi yang diubah ikut menjadi manual, jadi tidak lagi terhapus oleh unggahan / rekomendasi.
  *
- *   422  periode dikunci; karyawan bukan Casual/DW atau tidak aktif pada tanggal itu; tanggal di luar periode;
+ *   422  periode dikunci; karyawan bukan Casual/DW atau tidak aktif pada tanggal itu; Lembur DW untuk karyawan Daily
+ *        Worker (Lembur DW hanya untuk Casual); tanggal di luar periode;
  *        durasi 0; tumpang tindih dengan lembur lain karyawan itu (reguler maupun DW); tanggal berkode I/S/M/C
  *   peringatan (tidak menolak, terlihat di `warnings` baris): melebihi batas jam per hari / minggu; tanggal L / kosong
  *
@@ -94,6 +96,9 @@ class OvertimeEntryService
 
         if (! $employee->hasDailyWage()) {
             throw ValidationException::withMessages(['employee_id' => 'Lembur hanya untuk karyawan Casual & Daily Worker']);
+        }
+        if ($input['overtime_type'] === OvertimeType::DailyWorker->value && ! EmployeeCategory::of($employee)->allowsDw()) {
+            throw ValidationException::withMessages(['employee_id' => EmployeeCategory::DW_ONLY_CASUAL_MESSAGE]);
         }
         if (! $this->attendanceEmployees->one($employee, $period)->isActiveOn($input['date'])) {
             throw ValidationException::withMessages(['date' => 'Karyawan tidak aktif pada tanggal '.Carbon::parse($input['date'])->format('d/m/Y')]);

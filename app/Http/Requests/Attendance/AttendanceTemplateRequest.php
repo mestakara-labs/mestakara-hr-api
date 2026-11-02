@@ -5,7 +5,7 @@ namespace App\Http\Requests\Attendance;
 use App\Enums\AttendanceImportType;
 
 /**
- * Unduh template: ?period=YYYY-MM&type=daftar_hadir|lembur_reguler|lembur_dw
+ * Unduh template: ?period=YYYY-MM&type=daftar_hadir|lembur_reguler|lembur_dw&employee_category=casual|daily_worker
  */
 class AttendanceTemplateRequest extends AttendancePeriodRequest
 {
@@ -14,4 +14,6 @@ class AttendanceTemplateRequest extends AttendancePeriodRequest
         AttendanceImportType::RegularOvertime,
         AttendanceImportType::DailyWorkerOvertime,
     ];
+
+    protected bool $requiresCategory = true;
 }

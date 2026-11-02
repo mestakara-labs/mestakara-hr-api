@@ -152,6 +152,7 @@ class PayrollCalculator
             'position' => $item->positionTitle(),
             'sub_unit_name' => $item->subUnit()['name'] ?? null,
             'afdeling_code' => $item->subUnit()['afdeling_code'] ?? null,
+            'placement_object_name' => $item->placementObjectNames() ?: null,
             'payroll_group_id' => $group?->id,
             'payroll_group_name' => $group?->name,
             'division_id' => $division?->id,

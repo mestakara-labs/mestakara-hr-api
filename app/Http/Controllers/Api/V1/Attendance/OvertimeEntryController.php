@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api\V1\Attendance;
 
+use App\Enums\EmployeeCategory;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Attendance\OvertimeEntryIndexRequest;
 use App\Http\Requests\Attendance\OvertimeEntryRequest;
@@ -16,7 +17,8 @@ use Illuminate\Http\JsonResponse;
 /**
  * Lembur Reguler / Lembur DW per baris.
  *
- *   GET    /overtime-entries?period=YYYY-MM&type=lembur_reguler|lembur_dw   daftar, urut tanggal lalu nama
+ *   GET    /overtime-entries?period=YYYY-MM&type=lembur_reguler|lembur_dw&employee_category=casual|daily_worker
+ *                                     daftar lembur karyawan kategori itu, urut tanggal lalu nama
  *   POST   /overtime-entries          tambah satu baris (sumber manual)
  *   PUT    /overtime-entries/{id}     ubah (baris Excel / rekomendasi yang diubah menjadi manual)
  *   DELETE /overtime-entries/{id}     hapus { reason }
@@ -39,7 +41,7 @@ class OvertimeEntryController extends Controller
     {
         $type = OvertimeImportChecker::overtimeType($request->importType());
 
-        return ApiResponse::success($this->overview->overtimeList($request->period(), $type), 'Daftar lembur.');
+        return ApiResponse::success($this->overview->overtimeList($request->period(), $type, $request->employeeCategory()), 'Daftar lembur.');
     }
 
     /**
@@ -77,7 +79,7 @@ class OvertimeEntryController extends Controller
     /** Baris lembur dalam format yang sama dengan GET /overtime-entries (termasuk peringatan). */
     private function row(OvertimeEntry $entry): ?array
     {
-        $rows = $this->overview->overtimeList(new AttendancePeriod($entry->date->format('Y-m')), $entry->overtime_type);
+        $rows = $this->overview->overtimeList(new AttendancePeriod($entry->date->format('Y-m')), $entry->overtime_type, EmployeeCategory::of($entry->employee));
 
         return collect($rows)->firstWhere('id', $entry->id);
     }

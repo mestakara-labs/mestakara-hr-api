@@ -13,8 +13,9 @@ use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
 use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
 
 /**
- * Menulis FILE EXCEL SPKL dari isi SpklDocument: satu sheet per kelompok, blok karyawan ditumpuk ke bawah
- * dengan pemisah halaman di antara blok. Tata letak satu blok mengikuti "DAFTAR LEMBUR" GUNUNG MAS:
+ * Menulis FILE EXCEL SPKL dari isi SpklDocument: sheet pertama REKAP (PayrollExportWorkbook::writeTableSheet), lalu
+ * satu sheet per kelompok, blok karyawan ditumpuk ke bawah dengan pemisah halaman di antara blok. Tata letak satu blok
+ * mengikuti "DAFTAR LEMBUR" GUNUNG MAS:
  *
  *   kop + judul + bulan, identitas (No, Nama, Golongan, Bagian) + Gaji Pokok & tarif per jam,
  *   judul kolom 2 baris, setiap tanggal bulan itu, baris Jumlah / Pengali / Total Jam, baris
@@ -22,17 +23,21 @@ use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
  *   Label baris ringkasan di A–D, tanda ":" di kolom E (rata tengah) supaya titik duanya sejajar.
  *
  * Kolom: A Hari · B Tanggal · C Dari · D Sampai · E Jumlah · F Jam Pertama · G Setelah Jam Pertama ·
- *        H–J Minggu/Libur (7 Jam Pertama, Setelah 8 Jam Pertama, Setelah 9 Jam Kedua) · K–N Uraian Pekerjaan
+ *        H–J Minggu/Libur (7 Jam Pertama, Setelah 8 Jam Pertama, Setelah 9 Jam Kedua) · K–N Uraian Pekerjaan ·
+ *        O Jenis (Reguler / DW, hanya SPKL Lembur Reguler + DW)
  * Angka jam 0 tampil "-" (format angka), tanggal tanpa lembur dibiarkan kosong.
  */
 class SpklWorkbook
 {
-    private const COLUMN_COUNT = 14;
-
     private const WIDTHS = [
         'A' => 10, 'B' => 12, 'C' => 8, 'D' => 8, 'E' => 8, 'F' => 9, 'G' => 11,
         'H' => 9, 'I' => 11, 'J' => 11, 'K' => 11, 'L' => 11, 'M' => 11, 'N' => 11,
     ];
+
+    /** Kolom Jenis (SPKL Lembur Reguler + DW). */
+    private const TYPE_COLUMN = 'O';
+
+    private const TYPE_COLUMN_WIDTH = 9;
 
     /** Kolom Minggu/Libur: [huruf => kunci data]. */
     private const HOLIDAY_COLUMNS = ['H' => 'holiday_7', 'I' => 'holiday_8', 'J' => 'holiday_9'];
@@ -49,10 +54,15 @@ class SpklWorkbook
         $spreadsheet->getDefaultStyle()->getFont()->setName(DocumentStyle::FONT)->setSize(DocumentStyle::FONT_SIZE);
         $spreadsheet->removeSheetByIndex(0);
 
+        $rekap = $spreadsheet->createSheet();
+        $rekap->setTitle($document['excel_rekap']['title']);
+        (new PayrollExportWorkbook)->writeTableSheet($rekap, $document['excel_rekap'], $document);
+
+        $widths = self::widths($document);
         foreach ($document['groups'] as $group) {
             $sheet = $spreadsheet->createSheet();
             $sheet->setTitle($group['title']);
-            foreach (self::WIDTHS as $letter => $width) {
+            foreach ($widths as $letter => $width) {
                 $sheet->getColumnDimension($letter)->setWidth($width);
             }
 
@@ -69,7 +79,7 @@ class SpklWorkbook
             }
             // Lebar kolom mengikuti tulisan terpanjang di tabel (satu baris); Uraian (K–N) berlipat.
             ExcelColumnFit::applyToRanges($sheet, $tableRanges);
-            $this->centerTitles($sheet, $titleRows);
+            $this->centerTitles($sheet, $titleRows, array_keys($widths));
 
             // Dicetak diperkecil: satu blok karyawan = satu halaman A4.
             $setup = $sheet->getPageSetup();
@@ -87,6 +97,12 @@ class SpklWorkbook
         return $path;
     }
 
+    /** @return array<string, int> [huruf kolom => lebar], ditambah kolom Jenis untuk SPKL Lembur Reguler + DW */
+    private static function widths(array $document): array
+    {
+        return $document['show_type'] ? [...self::WIDTHS, self::TYPE_COLUMN => self::TYPE_COLUMN_WIDTH] : self::WIDTHS;
+    }
+
     /**
      * Pindahkan judul "DAFTAR LEMBUR" ke gabungan kolom yang lebar kiri & kanannya SAMA (setelah lebar kolom final),
      * supaya judul tepat di tengah kertas. Sisi kiri harus cukup untuk nama perusahaan, sisi kanan untuk tulisan bulan,
@@ -94,16 +110,17 @@ class SpklWorkbook
      * melebarkan satu kolom di sisi yang lebih sempit.
      *
      * @param  list<int>  $titleRows
+     * @param  list<string>  $letters  semua kolom blok
      */
-    private function centerTitles(Worksheet $sheet, array $titleRows): void
+    private function centerTitles(Worksheet $sheet, array $titleRows, array $letters): void
     {
-        $letters = array_keys(self::WIDTHS);
+        $lastLetter = end($letters);
         $widths = array_map(fn (string $letter) => $sheet->getColumnDimension($letter)->getWidth(), $letters);
         $count = count($letters);
         // Lebar minimal (satuan kolom Excel) tiap sisi: teks perusahaan (kiri) & bulan (kanan), huruf tebal.
         $firstRow = $titleRows[0] ?? 1;
         $leftMinimum = mb_strlen((string) $sheet->getCell("A{$firstRow}")->getValue()) * 1.25;
-        $rightMinimum = mb_strlen((string) $sheet->getCell("N{$firstRow}")->getValue()) * 1.25;
+        $rightMinimum = mb_strlen((string) $sheet->getCell("{$lastLetter}{$firstRow}")->getValue()) * 1.25;
         $best = [5, 9];   // F–J kalau tidak ada yang memenuhi
         $bestGap = INF;
 
@@ -145,14 +162,18 @@ class SpklWorkbook
      */
     private function writeBlock(Worksheet $sheet, array $block, array $document, int $top): array
     {
+        $letters = array_keys(self::widths($document));
+        $last = end($letters);
+        $showType = $document['show_type'];
+
         // Kop & identitas.
         // Kop: perusahaan (singkat, meluber ke kanan) | judul (ditengahkan sesudah lebar kolom final, lihat centerTitles) |
         // bulan (rata kanan di kolom terakhir, meluber ke kiri).
         $sheet->setCellValue("A{$top}", DocumentStyle::COMPANY_SHORT);
         $sheet->setCellValue("F{$top}", $document['title']);
-        $sheet->setCellValue("N{$top}", 'BULAN : '.mb_strtoupper($document['month_label']).($document['is_draft'] ? ' (DRAF)' : ''));
-        $sheet->getStyle("A{$top}:N{$top}")->getFont()->setBold(true);
-        $sheet->getStyle("N{$top}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_RIGHT);
+        $sheet->setCellValue("{$last}{$top}", 'BULAN : '.mb_strtoupper($document['month_label']).($document['is_draft'] ? ' (DRAF)' : ''));
+        $sheet->getStyle("A{$top}:{$last}{$top}")->getFont()->setBold(true);
+        $sheet->getStyle("{$last}{$top}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_RIGHT);
 
         $identity = [['No', $block['no']], ['Nama', $block['name']], ['Golongan', $block['grade']], ['Bagian', $block['section']]];
         foreach ($identity as $offset => [$label, $value]) {
@@ -177,6 +198,10 @@ class SpklWorkbook
         }
         $sheet->setCellValue("K{$head}", 'Uraian Pekerjaan');
         $sheet->mergeCells("K{$head}:N{$sub}");
+        if ($showType) {
+            $sheet->setCellValue(self::TYPE_COLUMN.$head, 'Jenis');
+            $sheet->mergeCells(self::TYPE_COLUMN.$head.':'.self::TYPE_COLUMN.$sub);
+        }
         $subTitles = [
             'C' => 'Dari', 'D' => 'Sampai', 'E' => 'Jumlah', 'F' => 'Jam Pertama', 'G' => 'Setelah Jam Pertama',
             'H' => '7 Jam Pertama', 'I' => 'Setelah 8 Jam Pertama', 'J' => 'Setelah 9 Jam Kedua',
@@ -184,7 +209,7 @@ class SpklWorkbook
         foreach ($subTitles as $letter => $title) {
             $sheet->setCellValue("{$letter}{$sub}", $title);
         }
-        $headStyle = $sheet->getStyle("A{$head}:N{$sub}");
+        $headStyle = $sheet->getStyle("A{$head}:{$last}{$sub}");
         $headStyle->getFont()->setBold(true);
         $headStyle->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER)->setVertical(Alignment::VERTICAL_CENTER)->setWrapText(true);
         $headStyle->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setRGB('D9E1F2');
@@ -204,6 +229,9 @@ class SpklWorkbook
             }
             PayrollExportWorkbook::setValue($sheet, "K{$row}", $day['description'] ?: null);
             $sheet->mergeCells("K{$row}:N{$row}");
+            if ($showType) {
+                PayrollExportWorkbook::setValue($sheet, self::TYPE_COLUMN.$row, $day['type']);
+            }
             $row++;
         }
 
@@ -239,15 +267,18 @@ class SpklWorkbook
         $sheet->mergeCells("I{$paidRow}:J{$paidRow}");
         $sheet->mergeCells("K{$paidRow}:N{$paidRow}");
 
-        $sheet->getStyle("A{$head}:N{$paidRow}")->getBorders()->getAllBorders()->setBorderStyle(Border::BORDER_THIN);
-        $sheet->getStyle("A{$sumRow}:N{$paidRow}")->getFont()->setBold(true);
+        $sheet->getStyle("A{$head}:{$last}{$paidRow}")->getBorders()->getAllBorders()->setBorderStyle(Border::BORDER_THIN);
+        $sheet->getStyle("A{$sumRow}:{$last}{$paidRow}")->getFont()->setBold(true);
         $sheet->getStyle('B'.($sub + 1).":J{$paidRow}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+        if ($showType) {
+            $sheet->getStyle(self::TYPE_COLUMN.($sub + 1).':'.self::TYPE_COLUMN.$paidRow)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+        }
         $sheet->getStyle("A{$sumRow}:A{$paidRow}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_LEFT);
         $sheet->getStyle('E'.($sub + 1).":J{$productRow}")->getNumberFormat()->setFormatCode(self::HOURS_FORMAT);
         $sheet->getStyle('M'.($top + 3).':M'.($top + 4))->getNumberFormat()->setFormatCode(self::MONEY_FORMAT);
 
         $sheet->getStyle('K'.($sub + 1).":K{$paidRow}")->getAlignment()->setWrapText(true);
 
-        return [PayrollExportWorkbook::writeSignatureBlock($sheet, $block['signature'], $paidRow + 1, self::COLUMN_COUNT), [$head, $paidRow]];
+        return [PayrollExportWorkbook::writeSignatureBlock($sheet, $block['signature'], $paidRow + 1, count($letters)), [$head, $paidRow]];
     }
 }

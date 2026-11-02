@@ -3357,22 +3357,7 @@
     "cost_center_code": "4A44AGR005",
     "bank_name": "BRI",
     "account_number": "367801009819535",
-    "account_holder": "ASRUL ANAM"
-  },
-  {
-    "registration_number": null,
-    "name": "DIANA ANDRIANI",
-    "payroll_group": "Bosscha Staff",
-    "wage_type": "Harian",
-    "base_salary": 2375000,
-    "working_days": 25,
-    "is_capped": false,
-    "operational_position_allowance": 825000,
-    "incentive": 0,
-    "cost_center_code": "4A44AGR005",
-    "bank_name": null,
-    "account_number": null,
-    "account_holder": null
+    "account_holder": "DIANA ANDRIANI"
   },
   {
     "registration_number": "326509",
@@ -4017,22 +4002,7 @@
     "cost_center_code": "4A44AGR005",
     "bank_name": "BRI",
     "account_number": "88701078241535",
-    "account_holder": "FAREL"
-  },
-  {
-    "registration_number": null,
-    "name": "NINING WIDIAWATI",
-    "payroll_group": "Bosscha SPP PT",
-    "wage_type": "Harian",
-    "base_salary": 2500000,
-    "working_days": 25,
-    "is_capped": false,
-    "operational_position_allowance": 0,
-    "incentive": 0,
-    "cost_center_code": "4A44AGR005",
-    "bank_name": null,
-    "account_number": null,
-    "account_holder": null
+    "account_holder": "NINING WIDIAWATI"
   },
   {
     "registration_number": "002519",
@@ -4047,22 +4017,7 @@
     "cost_center_code": "4A44AGR005",
     "bank_name": "BSI",
     "account_number": "7304002519",
-    "account_holder": "NISA"
-  },
-  {
-    "registration_number": null,
-    "name": "NENI MARDIANA SARI",
-    "payroll_group": "Bosscha SPP PT",
-    "wage_type": "Harian",
-    "base_salary": 2500000,
-    "working_days": 25,
-    "is_capped": false,
-    "operational_position_allowance": 0,
-    "incentive": 0,
-    "cost_center_code": "4A44AGR005",
-    "bank_name": null,
-    "account_number": null,
-    "account_holder": null
+    "account_holder": "NENI MARDIANA SARI"
   },
   {
     "registration_number": "044911",
@@ -4876,7 +4831,7 @@
   },
   {
     "registration_number": "760649",
-    "name": "HAFIZHAH HAURA",
+    "name": "HAFIZAH NAURA",
     "payroll_group": "Malabar",
     "wage_type": "Harian",
     "base_salary": 2200000,

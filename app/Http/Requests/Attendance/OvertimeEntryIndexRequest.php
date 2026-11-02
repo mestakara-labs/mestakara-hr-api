@@ -5,7 +5,7 @@ namespace App\Http\Requests\Attendance;
 use App\Enums\AttendanceImportType;
 
 /**
- * Daftar lembur: ?period=YYYY-MM&type=lembur_reguler|lembur_dw
+ * Daftar lembur: ?period=YYYY-MM&type=lembur_reguler|lembur_dw&employee_category=casual|daily_worker
  */
 class OvertimeEntryIndexRequest extends AttendancePeriodRequest
 {
@@ -13,4 +13,6 @@ class OvertimeEntryIndexRequest extends AttendancePeriodRequest
         AttendanceImportType::RegularOvertime,
         AttendanceImportType::DailyWorkerOvertime,
     ];
+
+    protected bool $requiresCategory = true;
 }

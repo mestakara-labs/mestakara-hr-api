@@ -3,6 +3,7 @@
 namespace App\Http\Requests\Attendance;
 
 use App\Enums\AttendanceCode;
+use App\Enums\EmployeeCategory;
 use App\Models\Employee;
 use App\Support\DataPeriod;
 use Illuminate\Foundation\Http\FormRequest;
@@ -11,7 +12,7 @@ use Illuminate\Validation\Validator;
 
 /**
  * KOREKSI MANUAL satu tanggal absensi: { date, status_code (null = kosongkan), reason (wajib) }.
- * Hanya karyawan Casual & Daily Worker; tanggal paling lambat bulan berjalan.
+ * Hanya karyawan Casual & Daily Worker (kode DW hanya untuk Casual); tanggal paling lambat bulan berjalan.
  */
 class EmployeeAttendanceRequest extends FormRequest
 {
@@ -50,6 +51,8 @@ class EmployeeAttendanceRequest extends FormRequest
                 $employee = $this->route('employee');
                 if (! $employee->hasDailyWage()) {
                     $validator->errors()->add('employee_id', 'Koreksi absensi hanya untuk karyawan Casual & Daily Worker');
+                } elseif ($this->input('status_code') === AttendanceCode::DailyWorker->value && ! EmployeeCategory::of($employee)->allowsDw()) {
+                    $validator->errors()->add('status_code', EmployeeCategory::DW_CODE_ONLY_CASUAL_MESSAGE);
                 }
 
                 $date = (string) $this->input('date');

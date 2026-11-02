@@ -63,7 +63,7 @@ class NomenclatureSeederTest extends TestCase
 
     public function test_legacy_assignment_keeps_raw_data_with_afdeling_code_from_its_kedudukan(): void
     {
-        $this->assertSame(578, LegacyAssignment::count());
+        $this->assertSame(575, LegacyAssignment::count());
 
         $dzulfi = Employee::where('nik', '8006026')->sole()->legacyAssignment;
         $this->assertSame('Asisten Diperbantukan', $dzulfi->raw_position);
@@ -78,7 +78,7 @@ class NomenclatureSeederTest extends TestCase
     public function test_one_legacy_assignment_per_employee_and_reruns_do_not_duplicate(): void
     {
         $this->seed([NomenclatureAliasSeeder::class, LegacyAssignmentSeeder::class]);
-        $this->assertSame(578, LegacyAssignment::count());
+        $this->assertSame(575, LegacyAssignment::count());
         $this->assertSame(219, NomenclatureAlias::count());
 
         $this->expectException(QueryException::class);

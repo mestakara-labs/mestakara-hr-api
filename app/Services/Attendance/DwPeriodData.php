@@ -3,6 +3,7 @@
 namespace App\Services\Attendance;
 
 use App\Enums\AttendanceCode;
+use App\Enums\EmployeeCategory;
 use App\Enums\OvertimeSource;
 use App\Enums\OvertimeType;
 use App\Models\AttendanceDay;
@@ -15,7 +16,7 @@ use Illuminate\Support\Collection;
  * DATA SATU PERIODE untuk Lembur DW, dimuat sekali (tanpa N+1) lalu dipakai bersama oleh daftar target,
  * rekomendasi, dan validasi simpan:
  *
- *   employees   karyawan Casual & DW yang aktif dalam periode (AttendanceEmployees)
+ *   employees   karyawan CASUAL yang aktif dalam periode (AttendanceEmployees); Lembur DW hanya untuk Casual
  *   codes       [id karyawan][tanggal] => kode daftar hadir
  *   entries     [id karyawan] => semua lembur tersimpan di minggu-minggu yang menyentuh periode (untuk batas mingguan)
  *
@@ -40,7 +41,8 @@ class DwPeriodData
 
     public static function load(AttendancePeriod $period, AttendanceEmployees $attendanceEmployees): self
     {
-        $employees = $attendanceEmployees->forPeriod($period);
+        // Lembur DW hanya untuk karyawan Casual.
+        $employees = $attendanceEmployees->forPeriod($period, EmployeeCategory::Casual);
 
         $codes = [];
         AttendanceDay::query()

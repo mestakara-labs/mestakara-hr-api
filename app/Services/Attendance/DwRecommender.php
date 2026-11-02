@@ -10,8 +10,10 @@ use Random\Randomizer;
  * MENYEBAR LEMBUR DW REKOMENDASI untuk satu karyawan (acak setiap kali dipanggil), dalam kelipatan
  * time_step_minutes, sampai upah lembur DW mendekati target:
  *
- *   1. acak urutan tanggal kandidat
- *   2. per tanggal: beri 1 / 1,5 / 2 jam acak (dipotong batas), berhenti begitu upah ≥ target
+ *   1. tanggal berkode DW lebih dulu (urutan acak): tiap tanggal diisi MAKSIMAL (sisa batas harian & mingguan),
+ *      berhenti begitu upah ≥ target
+ *   2. masih kurang: tanggal kandidat lain (K) diacak, per tanggal beri 1 / 1,5 / 2 jam acak (dipotong batas),
+ *      berhenti begitu upah ≥ target
  *   3. masih kurang: tambah satu kelipatan ke tanggal acak yang masih punya sisa batas, sampai ≥ target / batas habis
  *   4. penyesuaian akhir: kurangi tanggal terakhir yang diubah per kelipatan selama hasilnya LEBIH DEKAT ke target
  *
@@ -37,9 +39,10 @@ class DwRecommender
     /**
      * @param  list<string>  $candidates  tanggal yang boleh diisi
      * @param  list<array>  $fixedEntries  lembur yang tetap ada (untuk batas mingguan)
+     * @param  list<string>  $dwDates  tanggal kandidat yang berkode DW di daftar hadir (diisi maksimal lebih dulu)
      * @return array{minutes: array<string, int>, notes: list<string>} menit per tanggal (urut tanggal) + catatan
      */
-    public function recommend(DwPay $pay, EmployeeWageScheme $scheme, int $target, int $keptPay, array $candidates, array $fixedEntries): array
+    public function recommend(DwPay $pay, EmployeeWageScheme $scheme, int $target, int $keptPay, array $candidates, array $fixedEntries, array $dwDates = []): array
     {
         if ($keptPay >= $target) {
             return ['minutes' => [], 'notes' => [self::NOTE_KEPT_ENOUGH]];
@@ -70,10 +73,23 @@ class DwRecommender
             return $keptPay + array_sum(array_map(fn (int $value) => $pay->payForMinutes($scheme, $value), $minutes));
         };
 
-        // 1–2. Acak urutan tanggal, beri jam awal acak per tanggal sampai target tercapai.
-        $dates = $candidates === [] ? [] : $this->randomizer->shuffleArray($candidates);
+        // 1. Tanggal DW (acak) diisi maksimal sampai target tercapai.
+        $dwDates = array_values(array_intersect($dwDates, $candidates));
         $last = null;
-        foreach ($dates as $date) {
+        foreach ($dwDates === [] ? [] : $this->randomizer->shuffleArray($dwDates) as $date) {
+            if ($total() >= $target) {
+                break;
+            }
+            $amount = $remaining($date);
+            if ($amount > 0) {
+                $add($date, $amount);
+                $last = $date;
+            }
+        }
+
+        // 2. Tanggal lain (acak), beri jam awal acak per tanggal sampai target tercapai.
+        $otherDates = array_values(array_diff($candidates, $dwDates));
+        foreach ($otherDates === [] ? [] : $this->randomizer->shuffleArray($otherDates) as $date) {
             if ($total() >= $target) {
                 break;
             }
@@ -88,7 +104,7 @@ class DwRecommender
         // 3. Masih kurang: tambah satu kelipatan ke tanggal acak yang masih punya sisa batas.
         $exhausted = false;
         while ($total() < $target) {
-            $open = array_values(array_filter($dates, fn (string $date) => $remaining($date) >= $step));
+            $open = array_values(array_filter($candidates, fn (string $date) => $remaining($date) >= $step));
             if ($open === []) {
                 $exhausted = true;
                 break;

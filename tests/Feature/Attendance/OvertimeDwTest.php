@@ -23,7 +23,7 @@ use Tests\TestCase;
  * sumber dengan unggahan Excel. Hari ini 20 Oktober 2026; periode Oktober 2026 (1 Okt = Kamis).
  *
  * Skema uji: Gaji Pokok 2.600.000, HKE 26 -> Rp/hari 100.000; tarif/jam = round(2.600.000 / 173) = 15.029.
- * Upah per tanggal: 1 jam = 22.500 · 1,5 jam = 37.600 · 2 jam = 52.600 · 4 jam = 112.700; toleransi "sesuai" = 15.029.
+ * Upah per tanggal: 1 jam = 22.500 · 1,5 jam = 37.600 · 2 jam = 52.600 · 4 jam = 112.700; toleransi "sesuai" (kelipatan 15 menit) = 7.515.
  */
 class OvertimeDwTest extends TestCase
 {
@@ -60,12 +60,16 @@ class OvertimeDwTest extends TestCase
         $match = $this->casual('Dodi', '8002');
         $this->scheme($match);
         $this->codes($match, ['2026-10-01' => 'DW']);
-        $this->storeOvertime($match, '2026-10-02', '17:00', '21:00', 'dw', 'manual');            // 4 jam = 112.700
+        $this->storeOvertime($match, '2026-10-02', '17:00', '20:45', 'dw', 'manual');            // 3¾ jam = 105.200
+        $over = $this->casual('Fifi', '8004');
+        $this->scheme($over);
+        $this->codes($over, ['2026-10-01' => 'DW']);
+        $this->storeOvertime($over, '2026-10-02', '17:00', '21:00', 'dw', 'manual');             // 4 jam = 112.700
         $this->casual('Euis', '8003');                                                           // tanpa DW: tidak tampil
 
         $rows = collect($this->getJson('/api/v1/overtime-dw/targets?period=2026-10')->assertOk()->json('data'))->keyBy('name');
 
-        $this->assertSame(['Ani', 'Budi', 'Cici', 'Dodi'], $rows->keys()->all());
+        $this->assertSame(['Ani', 'Budi', 'Cici', 'Dodi', 'Fifi'], $rows->keys()->all());
         $ani = $rows['Ani'];
         $this->assertSame([
             'wage_type' => 'Harian', 'dw_days' => 3, 'daily_rate' => 100_000, 'target_amount' => 300_000,
@@ -75,15 +79,18 @@ class OvertimeDwTest extends TestCase
         $this->assertSame('skema_belum_diatur', $rows['Budi']['status']);
         $this->assertNull($rows['Budi']['daily_rate']);
         $this->assertSame('belum_ada', $rows['Cici']['status']);
-        $this->assertSame(['dw_pay' => 112_700, 'difference' => 12_700, 'status' => 'sesuai'],
+        // Toleransi "sesuai" = satu kelipatan 15 menit × pengali 2 = 7.515.
+        $this->assertSame(['dw_pay' => 105_200, 'difference' => 5_200, 'status' => 'sesuai'],
             array_intersect_key($rows['Dodi'], array_flip(['dw_pay', 'difference', 'status'])));
+        $this->assertSame(['dw_pay' => 112_700, 'difference' => 12_700, 'status' => 'lebih'],
+            array_intersect_key($rows['Fifi'], array_flip(['dw_pay', 'difference', 'status'])));
     }
 
     // -------------------------------------------------------------------------
     // Pratinjau rekomendasi
     // -------------------------------------------------------------------------
 
-    public function test_preview_uses_only_candidate_dates_in_30_minute_steps_from_1700_and_reaches_target(): void
+    public function test_preview_fills_dw_dates_to_the_maximum_first_in_15_minute_steps_from_1700_and_reaches_target(): void
     {
         $this->codesForRange($this->ani, 1, 31, 'K');
         $this->codes($this->ani, ['2026-10-01' => 'DW', '2026-10-08' => 'DW', '2026-10-15' => 'DW', '2026-10-22' => 'DW', '2026-10-29' => 'DW', '2026-10-04' => 'L']);
@@ -101,10 +108,15 @@ class OvertimeDwTest extends TestCase
             $this->assertSame($row['result_pay'] - 500_000, $row['difference']);
             $this->assertSame(52_600 + array_sum(array_column($row['entries'], 'pay')), $row['result_pay']);
 
+            // Kurang 447.400: cukup di 4 tanggal DW yang diisi penuh 4 jam (4 × 112.700 = 450.800; dikurangi 15 menit
+            // malah lebih jauh dari target), tanggal K tidak dipakai.
+            $this->assertEmpty(array_diff(array_column($row['entries'], 'date'), ['2026-10-01', '2026-10-08', '2026-10-15', '2026-10-22', '2026-10-29']));
+            $this->assertSame([240, 240, 240, 240], array_column($row['entries'], 'duration_minutes'));
+
             foreach ($row['entries'] as $entry) {
                 $this->assertNotContains($entry['date'], ['2026-10-02', '2026-10-03', '2026-10-04']);
                 $this->assertSame('17:00', $entry['start_time']);
-                $this->assertSame(0, $entry['duration_minutes'] % 30);
+                $this->assertSame(0, $entry['duration_minutes'] % 15);
                 $this->assertLessThanOrEqual(240, $entry['duration_minutes']);
                 $this->assertSame(Carbon::parse('17:00')->addMinutes($entry['duration_minutes'])->format('H:i'), $entry['end_time']);
             }
@@ -140,7 +152,7 @@ class OvertimeDwTest extends TestCase
     public function test_preview_kept_enough_and_skipped_employees(): void
     {
         $this->codes($this->ani, ['2026-10-01' => 'DW', '2026-10-02' => 'K']);
-        $this->storeOvertime($this->ani, '2026-10-02', '17:00', '21:00', 'dw', 'mobile');   // 112.700 ≥ target 100.000
+        $this->storeOvertime($this->ani, '2026-10-02', '17:00', '20:45', 'dw', 'mobile');   // 3¾ jam = 105.200 ≥ target 100.000
         $noScheme = $this->casual('Budi', '7530');
         $this->codes($noScheme, ['2026-10-01' => 'DW']);
         $noDays = $this->casual('Cici', '8001');
@@ -153,7 +165,7 @@ class OvertimeDwTest extends TestCase
 
         $this->assertSame([], $rows['Ani']['entries']);
         $this->assertSame([DwRecommender::NOTE_KEPT_ENOUGH], $rows['Ani']['notes']);
-        $this->assertSame(['kept_pay' => 112_700, 'result_pay' => 112_700, 'status' => 'sesuai'], array_intersect_key($rows['Ani'], array_flip(['kept_pay', 'result_pay', 'status'])));
+        $this->assertSame(['kept_pay' => 105_200, 'result_pay' => 105_200, 'status' => 'sesuai'], array_intersect_key($rows['Ani'], array_flip(['kept_pay', 'result_pay', 'status'])));
         $this->assertSame('Skema upah belum diatur', $rows['Budi']['skipped_reason']);
         $this->assertSame('Tidak ada hari DW di daftar hadir', $rows['Cici']['skipped_reason']);
         $response->assertJsonPath('data.summary.employees', 1)->assertJsonPath('data.summary.skipped', 2);
@@ -282,7 +294,7 @@ class OvertimeDwTest extends TestCase
         $this->storeOvertime($this->ani, '2026-10-02', '17:00', '18:00', 'dw', 'rekomendasi_sistem');
         $this->storeOvertime($budi, '2026-10-02', '17:00', '18:00', 'dw', 'mobile');
 
-        $this->getJson('/api/v1/attendance-imports?period=2026-10')
+        $this->getJson('/api/v1/attendance-imports?period=2026-10&employee_category=casual')
             ->assertOk()
             ->assertJsonPath('data.sections.0.entry_count', 2)
             ->assertJsonPath('data.sections.1.entry_count', 1)

@@ -1,11 +1,13 @@
 {{--
-    PDF Daftar Upah (F4 landscape). Isi dari App\Services\Payroll\PayrollExportDocument — sama persis dengan Excel.
-    Setiap sheet = halaman baru; judul kolom diulang di setiap halaman; blok tanda tangan tidak terpotong.
+    PDF Daftar Upah / Payroll / REKAP SPKL (F4 landscape). Isi dari App\Services\Payroll\PayrollExportDocument (REKAP SPKL:
+    SpklDocument) — sama persis dengan Excel. Setiap sheet = halaman baru: "rekap" & "list" = tabel satu tingkat
+    (kolom dari sheet), "group" = rincian Daftar Upah. Judul kolom diulang di setiap halaman; tanda tangan tidak terpotong.
     Supaya 21 kolom muat di F4, seluruh tata letak DIPERKECIL ($scale × ukuran Tahoma 11); isi sel satu baris,
     hanya Nama, Jabatan, Uraian cost center, dan judul kolom yang panjang yang boleh berlipat.
 --}}
 @use('App\Services\Payroll\PayrollExportDocument')
 @use('App\Services\Payroll\PayrollExportText')
+@use('App\Services\Payroll\SpklDocument')
 @php
     $money = fn ($value) => PayrollExportText::rupiah((int) $value);
     $scale = 0.65;
@@ -31,6 +33,10 @@
         table.data td, table.data td.num { text-align: center; }
         table.data td.name { text-align: left; }
         .signing-space { height: 60px; }
+        {{-- Per objek penempatan: judul objek tebal bergaris bawah, JUMLAH objek abu-abu, JUMLAH TOTAL biru muda. --}}
+        table.data tr.section td { font-weight: bold; text-decoration: underline; font-size: {{ $pt(13) }}; text-align: left; padding: 3px 5px; }
+        table.data tr.subtotal td { font-weight: bold; background: #BFBFBF; }
+        table.data tr.grand-total td { background: #D9E1F2; }
     </style>
 </head>
 <body>
@@ -45,11 +51,9 @@
                 <td style="width: 25%" class="company">{{ PayrollExportText::COMPANY }}<br>{{ PayrollExportText::UNIT }}</td>
                 <td style="width: 50%" class="title">
                     @if ($sheet['type'] === 'group')
-                        {{ PayrollExportDocument::TITLE }}<br>UNIT : AGROWISATA
-                    @elseif ($sheet['type'] === 'rekap')
-                        REKAPITULASI {{ PayrollExportDocument::TITLE }}
+                        {{ $sheet['heading'] }}<br>UNIT : AGROWISATA
                     @else
-                        PAYROLL {{ PayrollExportDocument::TITLE }}
+                        {{ $sheet['heading'] }}
                     @endif
                 </td>
                 <td style="width: 25%" class="right">
@@ -59,11 +63,11 @@
                     @endif
                 </td>
             </tr>
-            @if ($sheet['type'] === 'group')
+            @if ($sheet['type'] !== 'rekap')
                 <tr>
                     <td colspan="3" class="bold">
                         {{ $sheet['group_label'] }} : {{ $sheet['name'] }}
-                        @if ($sheet['sub_units'] !== '')
+                        @if ($sheet['type'] === 'group' && $sheet['sub_units'] !== '')
                             <br><span style="font-weight: normal">Sub Unit : {{ $sheet['sub_units'] }}</span>
                         @endif
                     </td>
@@ -104,16 +108,31 @@
                     </tr>
                 </thead>
                 <tbody>
-                    @foreach ($sheet['rows'] as $row)
-                        <tr>
-                            @foreach (PayrollExportDocument::GROUP_COLUMNS as [$key, , , , $isMoney])
-                                <td class="{{ $isMoney || in_array($key, ['no', 'hke', 'present_days'], true) ? 'num' : (in_array($key, ['position', 'cost_center_name'], true) ? 'wrap' : ($key === 'name' ? 'name' : '')) }}">{{ $isMoney ? $money($row[$key]) : $row[$key] }}</td>
+                    @php
+                        $amounts = array_slice(PayrollExportDocument::GROUP_COLUMNS, PayrollExportDocument::GROUP_LABEL_COLUMNS);
+                    @endphp
+                    @foreach ($sheet['sections'] as $section)
+                        <tr class="section">
+                            <td colspan="{{ count(PayrollExportDocument::GROUP_COLUMNS) }}">{{ $section['name'] }}</td>
+                        </tr>
+                        @foreach ($section['rows'] as $row)
+                            <tr>
+                                @foreach (PayrollExportDocument::GROUP_COLUMNS as [$key, , , , $isMoney])
+                                    <td class="{{ $isMoney || in_array($key, ['no', 'hke', 'present_days'], true) ? 'num' : (in_array($key, ['position', 'cost_center_name'], true) ? 'wrap' : (in_array($key, PayrollExportDocument::NAME_KEYS, true) ? 'name' : '')) }}">{{ $isMoney ? $money($row[$key]) : $row[$key] }}</td>
+                                @endforeach
+                            </tr>
+                        @endforeach
+                        <tr class="subtotal">
+                            <td class="num">{{ count($section['rows']) }}</td>
+                            <td colspan="{{ PayrollExportDocument::GROUP_LABEL_COLUMNS - 1 }}" class="center">{{ PayrollExportDocument::SECTION_TOTAL_LABEL }}</td>
+                            @foreach ($amounts as [$key, , , , $isMoney])
+                                <td class="num">{{ $isMoney ? $money($section['totals'][$key] ?? 0) : ($section['totals'][$key] ?? '') }}</td>
                             @endforeach
                         </tr>
                     @endforeach
-                    <tr class="total">
-                        <td colspan="6" class="center">JUMLAH</td>
-                        @foreach (array_slice(PayrollExportDocument::GROUP_COLUMNS, 6) as [$key, , , , $isMoney])
+                    <tr class="total grand-total">
+                        <td colspan="{{ PayrollExportDocument::GROUP_LABEL_COLUMNS }}" class="center">{{ PayrollExportDocument::GRAND_TOTAL_LABEL }}</td>
+                        @foreach ($amounts as [$key, , , , $isMoney])
                             <td class="num">{{ $isMoney ? $money($sheet['totals'][$key] ?? 0) : ($sheet['totals'][$key] ?? '') }}</td>
                         @endforeach
                     </tr>
@@ -121,8 +140,14 @@
             </table>
         @else
             @php
-                $columns = $sheet['type'] === 'rekap' ? PayrollExportDocument::REKAP_COLUMNS : PayrollExportDocument::PAYROLL_COLUMNS;
-                $labelSpan = $sheet['type'] === 'rekap' ? 2 : 6;
+                $columns = $sheet['columns'];
+                $labelSpan = $sheet['label_span'];
+                // Isi sel: rupiah, jam (0 = "-"), atau apa adanya.
+                $cell = fn ($value, $format) => match ($format) {
+                    true => $money($value ?? 0),
+                    'hours' => SpklDocument::hours($value ?? 0),
+                    default => $value,
+                };
             @endphp
             <table class="data">
                 <thead>
@@ -133,17 +158,37 @@
                     </tr>
                 </thead>
                 <tbody>
-                    @foreach ($sheet['rows'] as $row)
-                        <tr>
-                            @foreach ($columns as [$key, , , $isMoney])
-                                <td class="{{ $isMoney || is_int($row[$key]) ? 'num' : ($sheet['type'] === 'payroll' && in_array($key, ['name', 'account_name'], true) ? 'name' : '') }}">{{ $isMoney ? $money($row[$key]) : $row[$key] }}</td>
-                            @endforeach
-                        </tr>
+                    @php
+                        // Rincian Payroll dipecah per objek penempatan; REKAP satu bagian tanpa judul.
+                        $sections = $sheet['sections'] ?? [['name' => null, 'rows' => $sheet['rows'], 'totals' => null]];
+                    @endphp
+                    @foreach ($sections as $section)
+                        @if ($section['name'] !== null)
+                            <tr class="section">
+                                <td colspan="{{ count($columns) }}">{{ $section['name'] }}</td>
+                            </tr>
+                        @endif
+                        @foreach ($section['rows'] as $row)
+                            <tr>
+                                @foreach ($columns as [$key, , , $format])
+                                    <td class="{{ $format !== false || is_int($row[$key]) ? 'num' : ($sheet['type'] === 'list' && in_array($key, PayrollExportDocument::NAME_KEYS, true) ? 'name' : '') }}">{{ $cell($row[$key], $format) }}</td>
+                                @endforeach
+                            </tr>
+                        @endforeach
+                        @if ($section['totals'] !== null)
+                            <tr class="subtotal">
+                                <td class="num">{{ count($section['rows']) }}</td>
+                                <td colspan="{{ $labelSpan - 1 }}" class="center">{{ PayrollExportDocument::SECTION_TOTAL_LABEL }}</td>
+                                @foreach (array_slice($columns, $labelSpan) as [$key, , , $format])
+                                    <td class="num">{{ array_key_exists($key, $section['totals']) ? $cell($section['totals'][$key], $format) : '' }}</td>
+                                @endforeach
+                            </tr>
+                        @endif
                     @endforeach
-                    <tr class="total">
-                        <td colspan="{{ $labelSpan }}" class="center">JUMLAH</td>
-                        @foreach (array_slice($columns, $labelSpan) as [$key, , , $isMoney])
-                            <td class="num">{{ array_key_exists($key, $sheet['totals']) ? ($isMoney ? $money($sheet['totals'][$key]) : $sheet['totals'][$key]) : '' }}</td>
+                    <tr class="total {{ isset($sheet['sections']) ? 'grand-total' : '' }}">
+                        <td colspan="{{ $labelSpan }}" class="center">{{ isset($sheet['sections']) ? PayrollExportDocument::GRAND_TOTAL_LABEL : 'JUMLAH' }}</td>
+                        @foreach (array_slice($columns, $labelSpan) as [$key, , , $format])
+                            <td class="num">{{ array_key_exists($key, $sheet['totals']) ? $cell($sheet['totals'][$key], $format) : '' }}</td>
                         @endforeach
                     </tr>
                 </tbody>

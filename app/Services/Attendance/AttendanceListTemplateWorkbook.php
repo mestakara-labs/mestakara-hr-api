@@ -4,6 +4,7 @@ namespace App\Services\Attendance;
 
 use App\Enums\AttendanceCode;
 use App\Enums\AttendanceImportType;
+use App\Enums\EmployeeCategory;
 use App\Services\Employee\EmployeeExportWorkbook;
 use App\Support\DocumentStyle;
 use Illuminate\Support\Carbon;
@@ -60,7 +61,7 @@ class AttendanceListTemplateWorkbook
      * @param  array<string, array<string, string>>  $codes  [id karyawan][tanggal] => kode tersimpan
      * @param  array<string, string>  $holidays  [tanggal] => nama hari libur
      */
-    public function write(AttendancePeriod $period, Collection $employees, array $codes, array $holidays): string
+    public function write(AttendancePeriod $period, EmployeeCategory $category, Collection $employees, array $codes, array $holidays): string
     {
         $spreadsheet = new Spreadsheet;
         $spreadsheet->getDefaultStyle()->getFont()->setName(DocumentStyle::FONT)->setSize(DocumentStyle::FONT_SIZE);
@@ -73,15 +74,16 @@ class AttendanceListTemplateWorkbook
         $first = AttendanceListLayout::FIRST_DATA_ROW;
         $lastRow = max($first, $first + $employees->count() - 1);
 
-        $this->writeHeader($sheet, $period, $dates, $holidays, $lastColumn);
+        $this->writeHeader($sheet, $period, $category, $dates, $holidays, $lastColumn);
         TemplateFilterRow::apply($sheet, AttendanceListLayout::FILTER_ROW, AttendanceListLayout::HEADER_ROW, $lastColumn);
         $this->writeRows($sheet, $employees->values(), $dates, $codes, $holidays);
         $this->styleBody($sheet, $lastColumn, $lastRow);
         $this->addCodeDropdown($sheet, $lastDate, $lastRow);
         $this->addCodeColors($sheet, $lastDate, $lastRow);
+        $this->markOverCap($sheet, $days, $lastRow);
         $this->writeListSheet($spreadsheet, $period);
         $this->writeGuideSheet($spreadsheet);
-        TemplateRecapSheet::attendanceList($spreadsheet, $period, $employees);   // sheet ke-2, sesudah sheet data
+        TemplateRecapSheet::attendanceList($spreadsheet, $period, $category, $employees);   // sheet ke-2, sesudah sheet data
 
         // Tombol filter & urut di baris filter; baris data tidak dikunci supaya bisa diurutkan,
         // judul (baris 1–4) tetap dikunci. Pencocokan karyawan tetap memakai ID Sistem di tiap baris.
@@ -99,9 +101,9 @@ class AttendanceListTemplateWorkbook
     }
 
     /** @param  list<string>  $dates */
-    private function writeHeader(Worksheet $sheet, AttendancePeriod $period, array $dates, array $holidays, string $lastColumn): void
+    private function writeHeader(Worksheet $sheet, AttendancePeriod $period, EmployeeCategory $category, array $dates, array $holidays, string $lastColumn): void
     {
-        $sheet->setCellValue('A'.AttendanceListLayout::TITLE_ROW, 'DAFTAR HADIR KARYAWAN CASUAL & DAILY WORKER — UNIT AGROWISATA — Periode: '.$period->label());
+        $sheet->setCellValue('A'.AttendanceListLayout::TITLE_ROW, 'DAFTAR HADIR '.mb_strtoupper($category->label()).' — UNIT AGROWISATA — Periode: '.$period->label());
         $sheet->mergeCells('A1:'.$lastColumn.'1');
         $sheet->getStyle('A1')->getFont()->setBold(true)->setSize(12);
         $sheet->getRowDimension(1)->setRowHeight(24);
@@ -138,7 +140,7 @@ class AttendanceListTemplateWorkbook
             'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER, 'vertical' => Alignment::VERTICAL_CENTER, 'wrapText' => true],
             'borders' => ['allBorders' => ['borderStyle' => Border::BORDER_THIN]],
         ]);
-        $identityEnd = AttendanceListLayout::IDENTITY_COLUMNS['cost_center_name'][0];
+        $identityEnd = AttendanceListLayout::IDENTITY_COLUMNS['cap_days'][0];
         $sheet->getStyle("A{$header}:{$identityEnd}{$dayRow}")->applyFromArray([
             'font' => ['color' => ['rgb' => 'FFFFFF']],
             'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => EmployeeExportWorkbook::HEADER_BLUE]],
@@ -167,6 +169,8 @@ class AttendanceListTemplateWorkbook
                 'payroll_group' => $item->payrollGroupName(),
                 'cost_center_code' => $item->costCenter?->costCenter->code,
                 'cost_center_name' => $item->costCenter?->costCenter->name,
+                // Batas hari K skema upah; "-" = tidak dibatasi / belum ada skema / Daily Worker.
+                'cap_days' => $item->capDays() ?? '-',
             ];
             foreach (AttendanceListLayout::IDENTITY_COLUMNS as $key => [$letter]) {
                 if ($values[$key] !== null) {
@@ -207,6 +211,28 @@ class AttendanceListTemplateWorkbook
         ]);
         $firstDate = AttendanceListLayout::dateLetter(1);
         $sheet->getStyle("{$firstDate}{$first}:{$lastColumn}{$lastRow}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+        $capLetter = AttendanceListLayout::IDENTITY_COLUMNS['cap_days'][0];
+        $sheet->getStyle("{$capLetter}{$first}:{$capLetter}{$lastRow}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+    }
+
+    /**
+     * Jumlah K yang melebihi Maks Hari Kerja diberi warna MERAH (sama dengan warna kode M/L). Conditional formatting,
+     * jadi warnanya ikut berubah saat kode diubah di Excel. Maks Hari Kerja "-" = tidak pernah merah.
+     */
+    private function markOverCap(Worksheet $sheet, int $days, int $lastRow): void
+    {
+        $first = AttendanceListLayout::FIRST_DATA_ROW;
+        $kLetter = AttendanceListLayout::countLetter($days, array_search(AttendanceCode::Work->value, AttendanceCode::values(), true));
+        $capLetter = AttendanceListLayout::IDENTITY_COLUMNS['cap_days'][0];
+        [$fill, $font] = self::CODE_COLORS['M'];
+        $condition = (new Conditional)
+            ->setConditionType(Conditional::CONDITION_EXPRESSION)
+            ->addCondition("AND(ISNUMBER(\${$capLetter}{$first}),\${$kLetter}{$first}>\${$capLetter}{$first})");
+        $condition->getStyle()->getFill()->setFillType(Fill::FILL_SOLID);
+        $condition->getStyle()->getFill()->getStartColor()->setRGB($fill);
+        $condition->getStyle()->getFill()->getEndColor()->setRGB($fill);
+        $condition->getStyle()->getFont()->setBold(true)->getColor()->setRGB($font);
+        $sheet->getStyle("{$kLetter}{$first}:{$kLetter}{$lastRow}")->setConditionalStyles([$condition]);
     }
 
     /** Warnai sel tanggal menurut kodenya (lihat CODE_COLORS). */

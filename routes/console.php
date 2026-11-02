@@ -14,6 +14,7 @@
 */
 
 use App\Services\EmployeeStatusService;
+use App\Services\Payroll\PdfRenderer;
 use App\Services\Schedule\SchedulePeriodService;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Schedule;
@@ -39,3 +40,19 @@ Artisan::command('hr:generate-schedules', function (SchedulePeriodService $perio
 })->purpose('Buat jadwal kerja Draf bulan depan untuk semua regu kerja');
 
 Schedule::command('hr:generate-schedules')->monthlyOn(20, '01:00')->withoutOverlapping();
+
+/*
+ * Ubah SATU file HTML menjadi PDF (dompdf). Dijalankan PdfRenderer sebagai proses terpisah supaya bagian-bagian PDF
+ * ekspor yang besar dirender bersamaan (lihat config hr.pdf_processes); tidak untuk dipanggil manual.
+ */
+Artisan::command('hr:render-pdf {html : File HTML sumber} {output : File PDF hasil} {orientation=portrait} {paper=A4}', function (PdfRenderer $pdf) {
+    $html = file_get_contents($this->argument('html'));
+    if ($html === false) {
+        $this->error('File HTML tidak bisa dibaca: '.$this->argument('html'));
+
+        return 1;
+    }
+    file_put_contents($this->argument('output'), $pdf->render($html, $this->argument('orientation'), $this->argument('paper')));
+
+    return 0;
+})->purpose('Render satu file HTML menjadi PDF (proses render paralel ekspor PDF)');

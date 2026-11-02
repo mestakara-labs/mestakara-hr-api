@@ -2,6 +2,7 @@
 
 namespace App\Services\Attendance;
 
+use App\Enums\EmploymentStatus;
 use App\Models\Employee;
 use App\Models\EmployeeCostCenter;
 use App\Models\EmployeeWageScheme;
@@ -97,9 +98,13 @@ class PeriodEmployee
         ];
     }
 
-    /** Batas hari K dari skema upah (null = tidak dibatasi / belum diatur). */
+    /** Batas hari K dari skema upah (null = tidak dibatasi / belum diatur). Daily Worker tidak punya batas hari kerja. */
     public function capDays(): ?int
     {
+        if ($this->employee->employment_status === EmploymentStatus::DailyWorker->value) {
+            return null;
+        }
+
         return $this->scheme?->is_capped ? $this->scheme->cap_days : null;
     }
 

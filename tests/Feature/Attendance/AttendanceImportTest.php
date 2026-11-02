@@ -48,7 +48,8 @@ class AttendanceImportTest extends TestCase
         $this->travelTo('2026-10-20 10:00:00');
         Sanctum::actingAs(User::factory()->create(['name' => 'Admin SDM']));
         $this->ani = $this->casual('Ani', '7761');
-        $this->budi = $this->casual('Budi', '7530', 'Karyawan Daily Worker');
+        // Keduanya Casual: pengujian mekanisme unggah. Pemisahan Casual / Daily Worker di EmployeeCategoryImportTest.
+        $this->budi = $this->casual('Budi', '7530');
     }
 
     // -------------------------------------------------------------------------
@@ -67,15 +68,15 @@ class AttendanceImportTest extends TestCase
         PositionAssignment::factory()->for($this->ani)->for(Position::factory()->state(['title' => 'Karyawan Parkir']))->create(['start_date' => '2026-01-01']);
         EmployeeWageScheme::create([
             'employee_id' => $this->ani->id, 'wage_type' => 'Harian', 'base_salary' => 2_375_000, 'effective_date' => '2026-01-01',
-            'payroll_group_id' => PayrollGroup::factory()->create(['name' => 'Petugas Parkir'])->id,
+            'is_capped' => true, 'cap_days' => 20, 'payroll_group_id' => PayrollGroup::factory()->create(['name' => 'Petugas Parkir'])->id,
         ]);
         $this->ani->costCenterHistories()->create([
             'cost_center_id' => CostCenter::factory()->create(['code' => '4A44AGR007', 'name' => 'Tiket & Parkir'])->id,
             'effective_date' => '2026-01-01',
         ]);
 
-        $name = 'Template Daftar Hadir - Oktober 2026.xlsx';
-        $response = $this->get('/api/v1/attendance-imports/template?period=2026-10&type=daftar_hadir')
+        $name = 'Template Daftar Hadir Karyawan Casual - Oktober 2026.xlsx';
+        $response = $this->get('/api/v1/attendance-imports/template?period=2026-10&type=daftar_hadir&employee_category=casual')
             ->assertOk()
             ->assertHeader('Content-Disposition', 'attachment; filename="'.$name.'"; filename*=UTF-8\'\''.rawurlencode($name));
         $spreadsheet = $this->spreadsheetOf($response);
@@ -83,11 +84,12 @@ class AttendanceImportTest extends TestCase
         $date = fn (int $day, int $row) => AttendanceListLayout::dateLetter($day).$row;
 
         $this->assertSame(['Daftar Hadir', 'Rekap', 'Petunjuk', 'Daftar'], $spreadsheet->getSheetNames());
-        $this->assertStringContainsString('Periode: Oktober 2026', $sheet->getCell('A1')->getValue());
+        $this->assertSame('DAFTAR HADIR KARYAWAN CASUAL — UNIT AGROWISATA — Periode: Oktober 2026', $sheet->getCell('A1')->getValue());
         $this->assertSame(
-            ['No', 'No. Registrasi', 'Nama', 'Jabatan', 'Status', 'Sub Unit', 'Kode Afd', 'Objek Penempatan', 'Kelompok Upah', 'Cost Center', 'Uraian Cost Center'],
-            array_map(fn (string $column) => $sheet->getCell("{$column}2")->getValue(), ['B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L']),
+            ['No', 'No. Registrasi', 'Nama', 'Jabatan', 'Status', 'Sub Unit', 'Kode Afd', 'Objek Penempatan', 'Kelompok Upah', 'Cost Center', 'Uraian Cost Center', 'Maks Hari Kerja'],
+            array_map(fn (string $column) => $sheet->getCell("{$column}2")->getValue(), ['B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M']),
         );
+        $this->assertSame('N', AttendanceListLayout::dateLetter(1));   // tanggal 1 sesudah Maks Hari Kerja
         $this->assertSame(1, $sheet->getCell($date(1, 2))->getValue());
         $this->assertSame('Kam', $sheet->getCell($date(1, 3))->getValue());
         $this->assertSame(31, $sheet->getCell($date(31, 2))->getValue());
@@ -114,6 +116,13 @@ class AttendanceImportTest extends TestCase
         $this->assertSame(['Karyawan Parkir', 'Petugas Parkir', '4A44AGR007', 'Tiket & Parkir'],
             array_map(fn (string $column) => $sheet->getCell("{$column}5")->getValue(), ['E', 'J', 'K', 'L']));
         $this->assertNull($sheet->getCell('J6')->getValue());   // Budi belum punya skema upah
+        // Maks Hari Kerja: batas hari K skema upah, "-" kalau tidak ada (Budi tanpa skema).
+        $this->assertSame([20, '-'], [$sheet->getCell('M5')->getValue(), $sheet->getCell('M6')->getValue()]);
+        // Jumlah K melebihi Maks Hari Kerja = merah (conditional formatting kolom jumlah K).
+        $kLetter = AttendanceListLayout::countLetter(31, 0);
+        $overCap = $sheet->getConditionalStyles("{$kLetter}5:{$kLetter}6")[0];
+        $this->assertSame(["AND(ISNUMBER(\$M5),\${$kLetter}5>\$M5)"], $overCap->getConditions());
+        $this->assertSame(AttendanceListTemplateWorkbook::CODE_COLORS['M'][0], $overCap->getStyle()->getFill()->getStartColor()->getRGB());
         $this->assertSame('K', $sheet->getCell($date(1, 5))->getValue());
         $this->assertSame('S', $sheet->getCell($date(2, 5))->getValue());
         $this->assertSame('=COUNTIF('.$date(1, 5).':'.$date(31, 5).',"K")', $sheet->getCell(AttendanceListLayout::countLetter(31, 0).'5')->getValue());
@@ -149,7 +158,7 @@ class AttendanceImportTest extends TestCase
         OvertimeEntry::query()->insert($rows);   // 620 baris
 
         $startedAt = microtime(true);
-        $response = $this->get('/api/v1/attendance-imports/template?period=2026-10&type=lembur_dw')->assertOk();
+        $response = $this->get('/api/v1/attendance-imports/template?period=2026-10&type=lembur_dw&employee_category=casual')->assertOk();
         $this->assertLessThan(15, microtime(true) - $startedAt);
 
         // Rumus tidak dihitung di server; Excel menghitung ulang semuanya saat file dibuka.
@@ -169,8 +178,8 @@ class AttendanceImportTest extends TestCase
         $this->casual('Tanpa Reg');   // tidak bisa diisi di template lembur
         $this->storeOvertime($this->ani, '2026-10-03', '17:00', '19:00');
 
-        $name = 'Template Lembur DW - Oktober 2026.xlsx';
-        $this->get('/api/v1/attendance-imports/template?period=2026-10&type=lembur_dw')
+        $name = 'Template Lembur DW Karyawan Casual - Oktober 2026.xlsx';
+        $this->get('/api/v1/attendance-imports/template?period=2026-10&type=lembur_dw&employee_category=casual')
             ->assertOk()
             ->assertHeader('Content-Disposition', 'attachment; filename="'.$name.'"; filename*=UTF-8\'\''.rawurlencode($name));
 
@@ -309,7 +318,7 @@ class AttendanceImportTest extends TestCase
             ->assertUnprocessable()
             ->assertJsonPath('errors.file.0', 'File bukan template Lembur DW. Unduh template terbaru, isi, lalu unggah kembali tanpa mengubah nama sheet.');
 
-        $this->getJson('/api/v1/attendance-imports?period=2026-12')->assertUnprocessable();
+        $this->getJson('/api/v1/attendance-imports?period=2026-12&employee_category=casual')->assertUnprocessable();
     }
 
     // -------------------------------------------------------------------------
@@ -438,6 +447,36 @@ class AttendanceImportTest extends TestCase
         $this->assertSame(['status_code', 'K', null], [$cleared->items()->sole()->field, $cleared->items()->sole()->old_value, $cleared->items()->sole()->new_value]);
     }
 
+    public function test_template_reuploaded_as_is_skips_rows_equal_to_manual_or_mobile_entries(): void
+    {
+        $manual = $this->storeOvertime($this->ani, '2026-10-05', '17:00', '19:00', 'reguler', 'manual');
+        $mobile = $this->storeOvertime($this->budi, '2026-10-06', '18:00', '19:00', 'reguler', 'mobile');
+        $this->storeOvertime($this->ani, '2026-10-07', '17:00', '18:00');   // dari Excel sebelumnya
+
+        // Template memuat ketiga baris; diunggah ulang apa adanya: baris manual & mobile dilewati, bukan salah.
+        $spreadsheet = $this->template('lembur_reguler');
+        $response = $this->preview($spreadsheet, 'lembur_reguler')->assertOk();
+        $skippedRows = collect($response->json('data.rows'))
+            ->filter(fn (array $row) => collect($row['warnings'])->contains(fn (array $warning) => str_contains($warning['message'], 'dilewati')));
+        $this->assertSame(['Ani', 'Budi'], $skippedRows->pluck('name')->values()->all());
+        $this->assertNotContains('salah', collect($response->json('data.rows'))->pluck('status')->all());
+        $this->assertSame(
+            'Sama dengan Lembur Reguler manual tersimpan; baris ini dilewati (data tersimpan tetap dipakai)',
+            $this->messages($this->previewRow($response, $this->ani), 'warnings')['Jam Mulai'],
+        );
+        $this->assertSame(['invalid' => 0, 'will_create' => 1, 'will_delete' => 1, 'unchanged' => 2],
+            array_intersect_key($response->json('data.summary'), array_flip(['invalid', 'will_create', 'will_delete', 'unchanged'])));
+
+        $this->import($spreadsheet, 'lembur_reguler')->assertCreated()->assertJsonPath('data.batch.skipped_count', 2);
+        $this->assertSame(['manual', 'mobile', 'import_excel'], OvertimeEntry::query()->orderBy('date')->pluck('source')->map->value->all());
+        $this->assertTrue($manual->fresh()->exists && $mobile->fresh()->exists);
+
+        // Jam berbeda yang tumpang tindih dengan manual tetap SALAH (Excel tidak menimpa manual).
+        $this->setOvertimeRows($spreadsheet, 'lembur_reguler', [['7761', '05/10/2026', '18:00', '20:00', 'Persiapan acara']]);
+        $row = $this->preview($spreadsheet, 'lembur_reguler')->assertOk()->json('data.rows.0');
+        $this->assertSame(['Jam Mulai' => 'Tumpang tindih dengan Lembur Reguler manual tersimpan (17:00–19:00)'], $this->messages($row));
+    }
+
     public function test_overtime_store_replaces_import_entries_of_that_type_only(): void
     {
         $this->storeCode($this->ani, '2026-10-06', 'K');
@@ -477,7 +516,7 @@ class AttendanceImportTest extends TestCase
             ->assertJsonPath('message', 'Periode upah Oktober 2026 sudah dikunci. Absensi & lembur bulan itu tidak bisa diubah.');
         $this->preview($spreadsheet, 'daftar_hadir')->assertStatus(423);
 
-        $this->getJson('/api/v1/attendance-imports?period=2026-10')
+        $this->getJson('/api/v1/attendance-imports?period=2026-10&employee_category=casual')
             ->assertOk()
             ->assertJsonPath('data.period_status', 'dikunci')
             ->assertJsonCount(3, 'data.sections')

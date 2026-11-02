@@ -40,7 +40,7 @@ class OvertimeSettingTest extends TestCase
             ->assertJsonPath('data.rounding', 100)
             ->assertJsonPath('data.dw_default_start_time', '17:00')
             ->assertJsonPath('data.dw_default_description', null)
-            ->assertJsonPath('data.time_step_minutes', 30)
+            ->assertJsonPath('data.time_step_minutes', 15)
             ->assertJsonMissingPath('data.spkl_signers')
             ->assertJsonMissingPath('data.payroll_signers');
     }

@@ -30,7 +30,7 @@ class OvertimeSettingRequest extends FormRequest
             'dw_default_start_time' => ['required', 'date_format:H:i'],
             /** Uraian pekerjaan bawaan Lembur DW (wajib, tidak ada teks bawaan). */
             'dw_default_description' => ['required', 'string', 'max:255'],
-            /** Kelipatan jam lembur dalam menit, mis. 30. */
+            /** Kelipatan jam lembur dalam menit, mis. 15. */
             'time_step_minutes' => ['required', 'integer', 'between:1,60'],
         ];
     }

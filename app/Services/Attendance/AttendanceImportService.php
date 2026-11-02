@@ -5,12 +5,14 @@ namespace App\Services\Attendance;
 use App\Enums\AttendanceImportType;
 use App\Enums\AttendanceSource;
 use App\Enums\AttendanceWriteOutcome;
+use App\Enums\EmployeeCategory;
 use App\Enums\ImportBatchStatus;
 use App\Enums\OvertimeSource;
 use App\Enums\OvertimeType;
 use App\Models\AttendanceDay;
 use App\Models\AttendanceImportBatch;
 use App\Models\AttendanceImportConflict;
+use App\Models\Employee;
 use App\Models\Holiday;
 use App\Models\OvertimeEntry;
 use App\Support\ApiResponse;
@@ -20,14 +22,16 @@ use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
 
 /**
- * UNGGAH ABSENSI per jenis (daftar hadir, lembur reguler, lembur DW):
+ * UNGGAH ABSENSI per jenis (daftar hadir, lembur reguler, lembur DW) dan per KATEGORI KARYAWAN (Casual / Daily
+ * Worker). Setiap langkah hanya menyentuh karyawan kategori itu; data kategori lain tidak tersentuh.
  *
- *   template()  file .xlsx berisi data tersimpan periode itu
+ *   template()  file .xlsx berisi data tersimpan periode itu (karyawan kategori itu saja)
  *   preview()   baca & periksa file, TIDAK menyimpan
  *   store()     simpan kalau tidak ada baris salah (422 kalau ada; 423 kalau periode dikunci):
- *               batch lama jenis itu -> "diganti", batch baru -> "aktif", lalu
+ *               batch lama jenis & kategori itu -> "diganti", batch baru -> "aktif", lalu
  *               daftar hadir: setiap tanggal ditulis / dikosongkan lewat AttendanceDayService (sumber import_excel)
- *               lembur:       semua lembur jenis itu bersumber import_excel di periode itu diganti isi file
+ *               lembur:       lembur jenis itu bersumber import_excel milik karyawan kategori itu di periode itu
+ *                             diganti isi file
  *               konflik dengan data mobile / manual disimpan di attendance_import_conflicts
  */
 class AttendanceImportService
@@ -48,13 +52,13 @@ class AttendanceImportService
     // -------------------------------------------------------------------------
 
     /** Tulis template ke file sementara; hasilnya path file. */
-    public function template(AttendancePeriod $period, AttendanceImportType $type): string
+    public function template(AttendancePeriod $period, AttendanceImportType $type, EmployeeCategory $category): string
     {
-        $employees = $this->attendanceEmployees->forPeriod($period);
+        $employees = $this->attendanceEmployees->forPeriod($period, $category);
 
         if ($type === AttendanceImportType::AttendanceList) {
             $codes = [];
-            $this->daysOf($period)->each(function (AttendanceDay $day) use (&$codes) {
+            $this->daysOf($period)->whereIn('employee_id', $employees->keys())->each(function (AttendanceDay $day) use (&$codes) {
                 $codes[$day->employee_id][$day->date->toDateString()] = $day->status_code->value;
             });
             $holidays = Holiday::query()
@@ -64,45 +68,51 @@ class AttendanceImportService
                 ->mapWithKeys(fn (Holiday $holiday) => [$holiday->date->toDateString() => $holiday->name])
                 ->all();
 
-            return $this->listWorkbook->write($period, $employees, $codes, $holidays);
+            return $this->listWorkbook->write($period, $category, $employees, $codes, $holidays);
         }
 
-        $entries = $this->overtimeOf($period, OvertimeImportChecker::overtimeType($type))->load('employee')
+        $entries = $this->overtimeOf($period, OvertimeImportChecker::overtimeType($type))
+            ->whereIn('employee_id', $employees->keys())
+            ->load('employee')
             ->sortBy(fn (OvertimeEntry $entry) => [$entry->date->toDateString(), $entry->employee->name, $entry->start_time])
             ->values();
 
-        return $this->overtimeWorkbook->write($period, $type, $employees, $entries);
+        return $this->overtimeWorkbook->write($period, $type, $category, $employees, $entries);
     }
 
     /**
-     * Jumlah data tersimpan per jenis pada periode itu, dari SEMUA sumber:
+     * Jumlah data tersimpan per jenis pada periode itu milik karyawan kategori itu, dari SEMUA sumber:
      * daftar_hadir = jumlah karyawan yang punya kode; lembur = jumlah baris lembur jenis itu.
      *
      * @return array<string, int> [jenis unggahan => jumlah]
      */
-    public function entryCounts(AttendancePeriod $period): array
+    public function entryCounts(AttendancePeriod $period, EmployeeCategory $category): array
     {
         $from = $period->start()->toDateString();
         $to = $period->end()->addDay()->toDateString();
+        $ofCategory = fn ($query) => $query->whereIn('employee_id', Employee::query()->select('id')->where('employment_status', $category->employmentStatus()));
         $overtime = OvertimeEntry::query()
             ->where('date', '>=', $from)
             ->where('date', '<', $to)
+            ->where($ofCategory)
             ->selectRaw('overtime_type, count(*) as total')
             ->groupBy('overtime_type')
             ->toBase()
             ->pluck('total', 'overtime_type');
 
-        return [
-            AttendanceImportType::AttendanceList->value => AttendanceDay::query()->where('date', '>=', $from)->where('date', '<', $to)->distinct()->count('employee_id'),
+        $counts = [
+            AttendanceImportType::AttendanceList->value => AttendanceDay::query()->where('date', '>=', $from)->where('date', '<', $to)->where($ofCategory)->distinct()->count('employee_id'),
             AttendanceImportType::RegularOvertime->value => (int) ($overtime[OvertimeType::Regular->value] ?? 0),
             AttendanceImportType::DailyWorkerOvertime->value => (int) ($overtime[OvertimeType::DailyWorker->value] ?? 0),
         ];
+
+        return array_intersect_key($counts, array_flip(array_map(fn (AttendanceImportType $type) => $type->value, $category->importTypes())));
     }
 
-    /** Mis. "Template Daftar Hadir - Oktober 2026.xlsx". */
-    public function templateFileName(AttendancePeriod $period, AttendanceImportType $type): string
+    /** Mis. "Template Daftar Hadir Karyawan Daily Worker - Oktober 2026.xlsx". */
+    public function templateFileName(AttendancePeriod $period, AttendanceImportType $type, EmployeeCategory $category): string
     {
-        return 'Template '.ImportWorkbook::typeLabel($type).' - '.$period->label().'.xlsx';
+        return 'Template '.ImportWorkbook::typeLabel($type).' '.$category->label().' - '.$period->label().'.xlsx';
     }
 
     // -------------------------------------------------------------------------
@@ -110,10 +120,10 @@ class AttendanceImportService
     // -------------------------------------------------------------------------
 
     /** Hasil pemeriksaan untuk front end: { summary, rows }. */
-    public function preview(AttendancePeriod $period, AttendanceImportType $type, UploadedFile $file): array
+    public function preview(AttendancePeriod $period, AttendanceImportType $type, EmployeeCategory $category, UploadedFile $file): array
     {
         $period->ensureNotLocked();
-        $result = $this->check($period, $type, $file);
+        $result = $this->check($period, $type, $category, $file);
 
         return ['summary' => $result['summary'], 'rows' => $result['rows']];
     }
@@ -123,22 +133,24 @@ class AttendanceImportService
      *
      * @return array{batch: AttendanceImportBatch, summary: array<string, int>}
      */
-    public function store(AttendancePeriod $period, AttendanceImportType $type, UploadedFile $file): array
+    public function store(AttendancePeriod $period, AttendanceImportType $type, EmployeeCategory $category, UploadedFile $file): array
     {
         $period->ensureNotLocked();
-        $result = $this->check($period, $type, $file);
+        $result = $this->check($period, $type, $category, $file);
         $this->rejectInvalidRows($result['rows']);
 
-        return DB::transaction(function () use ($period, $type, $file, $result) {
+        return DB::transaction(function () use ($period, $type, $category, $file, $result) {
             AttendanceImportBatch::query()
                 ->where('period', $period->period)
                 ->where('import_type', $type)
+                ->where('employee_category', $category)
                 ->where('status', ImportBatchStatus::Active)
                 ->update(['status' => ImportBatchStatus::Replaced]);
 
             $batch = AttendanceImportBatch::create([
                 'period' => $period->period,
                 'import_type' => $type,
+                'employee_category' => $category,
                 'file_name' => $file->getClientOriginalName(),
                 'uploaded_by' => auth()->id(),
                 'total_rows' => $result['summary']['total_rows'],
@@ -147,7 +159,7 @@ class AttendanceImportService
 
             $counts = $type === AttendanceImportType::AttendanceList
                 ? $this->applyAttendanceList($batch, $result)
-                : $this->applyOvertime($batch, $period, $type, $result);
+                : $this->applyOvertime($batch, $period, $type, $category, $result);
 
             foreach ($result['conflicts'] as $conflict) {
                 AttendanceImportConflict::create([
@@ -175,11 +187,11 @@ class AttendanceImportService
         });
     }
 
-    private function check(AttendancePeriod $period, AttendanceImportType $type, UploadedFile $file): array
+    private function check(AttendancePeriod $period, AttendanceImportType $type, EmployeeCategory $category, UploadedFile $file): array
     {
         return $type === AttendanceImportType::AttendanceList
-            ? $this->listChecker->check($period, $this->listReader->rows($file, $period))
-            : $this->overtimeChecker->check($period, $type, $this->overtimeReader->rows($file, $period, $type));
+            ? $this->listChecker->check($period, $category, $this->listReader->rows($file, $period))
+            : $this->overtimeChecker->check($period, $type, $category, $this->overtimeReader->rows($file, $period, $type));
     }
 
     /** Tolak simpan (422) kalau masih ada baris salah: errors["rows.<baris>"] = ["Kolom: pesan", …]. */
@@ -226,15 +238,16 @@ class AttendanceImportService
     }
 
     /** @return array{created: int, updated: int, deleted: int, unchanged: int, conflicts: int} */
-    private function applyOvertime(AttendanceImportBatch $batch, AttendancePeriod $period, AttendanceImportType $type, array $result): array
+    private function applyOvertime(AttendanceImportBatch $batch, AttendancePeriod $period, AttendanceImportType $type, EmployeeCategory $category, array $result): array
     {
         $overtimeType = OvertimeImportChecker::overtimeType($type);
 
-        // Lembur jenis ini dari Excel sebelumnya (dan untuk Lembur DW: juga rekomendasi sistem) diganti seluruhnya
-        // untuk SEMUA karyawan, termasuk yang tidak ada di file. Manual / mobile tidak disentuh.
+        // Lembur jenis ini dari Excel sebelumnya (dan untuk Lembur DW: juga rekomendasi sistem) diganti seluruhnya untuk
+        // SEMUA karyawan KATEGORI ITU, termasuk yang tidak ada di file. Manual / mobile & kategori lain tidak disentuh.
         $replacedSources = OvertimeImportChecker::replacedSources($overtimeType);
+        $categoryIds = Employee::query()->where('employment_status', $category->employmentStatus())->pluck('id')->flip();
         $deleted = $this->overtimeOf($period, $overtimeType)
-            ->filter(fn (OvertimeEntry $entry) => in_array($entry->source, $replacedSources, true))
+            ->filter(fn (OvertimeEntry $entry) => in_array($entry->source, $replacedSources, true) && $categoryIds->has($entry->employee_id))
             ->each(fn (OvertimeEntry $entry) => $entry->delete())
             ->count();
 
@@ -249,7 +262,8 @@ class AttendanceImportService
             ]);
         }
 
-        return ['created' => count($result['entries']), 'updated' => 0, 'deleted' => $deleted, 'unchanged' => 0, 'conflicts' => 0];
+        // unchanged = baris file yang sama persis dengan lembur manual / mobile tersimpan (dilewati, lihat OvertimeImportChecker).
+        return ['created' => count($result['entries']), 'updated' => 0, 'deleted' => $deleted, 'unchanged' => $result['summary']['unchanged'], 'conflicts' => 0];
     }
 
     /** @return Collection<int, AttendanceDay> */

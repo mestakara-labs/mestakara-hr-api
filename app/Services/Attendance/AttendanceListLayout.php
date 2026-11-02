@@ -8,15 +8,17 @@ use PhpOffice\PhpSpreadsheet\Cell\Coordinate;
  * TATA LETAK template DAFTAR HADIR — dipakai bersama oleh penulis template (AttendanceListTemplateWorkbook)
  * dan pembaca file unggahan (AttendanceListImportReader):
  *
- *   baris 1   judul ("DAFTAR HADIR KARYAWAN CASUAL & DAILY WORKER — UNIT AGROWISATA — Periode: Oktober 2026")
+ *   baris 1   judul per kategori ("DAFTAR HADIR KARYAWAN CASUAL — UNIT AGROWISATA — Periode: Oktober 2026" /
+ *             "DAFTAR HADIR KARYAWAN DAILY WORKER — …")
  *   baris 2   judul kolom + nomor tanggal
  *   baris 3   nama hari singkat (Sen, Sel, …)
  *   baris 4   baris filter (kosong, abu-abu; tombol filter & urut Excel ada di baris ini)
  *   baris 5…  satu karyawan per baris
  *
  *   A ID Sistem (tersembunyi) | B No | C No. Registrasi | D Nama | E Jabatan | F Status | G Sub Unit | H Kode Afd |
- *   I Objek Penempatan | J Kelompok Upah | K Cost Center | L Uraian Cost Center |
- *   M… tanggal 1..akhir bulan | jumlah K, DW, I, S, M, C, L (rumus COUNTIF)
+ *   I Objek Penempatan | J Kelompok Upah | K Cost Center | L Uraian Cost Center | M Maks Hari Kerja (batas hari K
+ *   skema upah, "-" kalau tidak dibatasi) |
+ *   N… tanggal 1..akhir bulan | jumlah K, DW, I, S, M, C, L (rumus COUNTIF; jumlah K > Maks Hari Kerja = merah)
  *
  * Sheet tersembunyi "Daftar": kolom A = daftar kode (dropdown), E1 = periode file, E2 = jenis file.
  */
@@ -57,13 +59,14 @@ class AttendanceListLayout
         'payroll_group' => ['J', 'Kelompok Upah', 18],
         'cost_center_code' => ['K', 'Cost Center', 13],
         'cost_center_name' => ['L', 'Uraian Cost Center', 22],
+        'cap_days' => ['M', 'Maks Hari Kerja', 9],
     ];
 
     /** Kolom terakhir yang dibekukan (freeze) bersama judul: sampai Jabatan. */
     public const LAST_FROZEN_COLUMN = 'E';
 
     /** Nomor kolom (1 = A) tanggal 1. */
-    public const FIRST_DATE_COLUMN = 13;
+    public const FIRST_DATE_COLUMN = 14;
 
     /** Huruf kolom untuk tanggal ke-$day (1-based). */
     public static function dateLetter(int $day): string

@@ -3,7 +3,8 @@
 namespace App\Services\Payroll;
 
 use App\Support\DocumentStyle;
-use App\Support\ExcelColumnFit;
+use PhpOffice\PhpSpreadsheet\Cell\Coordinate;
+use PhpOffice\PhpSpreadsheet\Shared\Font as SharedFont;
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
 use PhpOffice\PhpSpreadsheet\Style\Alignment;
 use PhpOffice\PhpSpreadsheet\Style\Border;
@@ -26,18 +27,49 @@ use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
  *        H–J Minggu/Libur (7 Jam Pertama, Setelah 8 Jam Pertama, Setelah 9 Jam Kedua) · K–N Uraian Pekerjaan ·
  *        O Jenis (Reguler / DW, hanya SPKL Lembur Reguler + DW)
  * Angka jam 0 tampil "-" (format angka), tanggal tanpa lembur dibiarkan kosong.
+ *
+ * CETAK A4 TEGAK: lebar kolom tetap & ramping (judul kolom & Uraian Pekerjaan berlipat), tinggi setiap baris diisi sesuai
+ * jumlah baris tulisannya, lalu skala cetak dihitung dari blok karyawan terbesar (fitBlocksToA4) supaya SATU karyawan =
+ * SATU halaman. Tidak memakai "Fit To", karena Excel mengabaikan pemisah halaman manual selama "Fit To" aktif.
  */
 class SpklWorkbook
 {
+    /**
+     * Lebar kolom (satuan Excel) untuk A4 tegak, total ± 100: kolom jam F–J cukup untuk kata terpanjang judulnya
+     * ("Pertama", judul berlipat, huruf SUB_TITLE_FONT_SIZE), Uraian Pekerjaan (K–N, 34) cukup 2 baris untuk uraian
+     * ± 50 huruf.
+     */
     private const WIDTHS = [
-        'A' => 10, 'B' => 12, 'C' => 8, 'D' => 8, 'E' => 8, 'F' => 9, 'G' => 11,
-        'H' => 9, 'I' => 11, 'J' => 11, 'K' => 11, 'L' => 11, 'M' => 11, 'N' => 11,
+        'A' => 6.5, 'B' => 8.5, 'C' => 6, 'D' => 6, 'E' => 6.5, 'F' => 7, 'G' => 7,
+        'H' => 7, 'I' => 7, 'J' => 7, 'K' => 8.5, 'L' => 8.5, 'M' => 8.5, 'N' => 8.5,
     ];
+
+    /** Ukuran huruf judul sub-kolom jam (Dari … Setelah 9 Jam Kedua), supaya kolom F–J bisa ramping. */
+    private const SUB_TITLE_FONT_SIZE = 9;
+
+    /** Lebar satu satuan kolom Excel dengan huruf bawaan Tahoma 11, point (diukur di Excel: kolom 10 = ± 60 pt). */
+    private const POINTS_PER_WIDTH_UNIT = 6.0;
 
     /** Kolom Jenis (SPKL Lembur Reguler + DW). */
     private const TYPE_COLUMN = 'O';
 
-    private const TYPE_COLUMN_WIDTH = 9;
+    private const TYPE_COLUMN_WIDTH = 7.5;
+
+    /** Kertas A4 (point) & margin cetak (inci). */
+    private const A4_WIDTH_POINTS = 595.28;
+
+    private const A4_HEIGHT_POINTS = 841.89;
+
+    private const MARGIN_INCHES = 0.4;
+
+    /** Cadangan perbedaan hitungan lebar/tinggi di sini dengan tampilan Excel (skala dikali ini). */
+    private const PRINT_SAFETY = 0.96;
+
+    /** Lebar rata-rata satu huruf Tahoma 11 terhadap satuan lebar kolom Excel (tulisan biasa, bukan angka). */
+    private const CHAR_FACTOR = 1.05;
+
+    /** Tinggi baris kosong (jarak antar bagian & ruang tanda tangan), point. */
+    private const EMPTY_ROW_HEIGHT = 9;
 
     /** Kolom Minggu/Libur: [huruf => kunci data]. */
     private const HOLIDAY_COLUMNS = ['H' => 'holiday_7', 'I' => 'holiday_8', 'J' => 'holiday_9'];
@@ -67,26 +99,19 @@ class SpklWorkbook
             }
 
             $row = 1;
-            $tableRanges = [];
+            $blockRanges = [];
             $titleRows = [];
             foreach ($group['blocks'] as $index => $block) {
                 $titleRows[] = $row;
-                [$lastRow, $tableRanges[]] = $this->writeBlock($sheet, $block, $document, $row);
+                $lastRow = $this->writeBlock($sheet, $block, $document, $row);
+                $blockRanges[] = [$row, $lastRow];
                 if ($index < count($group['blocks']) - 1) {
-                    $sheet->setBreak("A{$lastRow}", Worksheet::BREAK_ROW);
+                    $sheet->setBreak("A{$lastRow}", Worksheet::BREAK_ROW);   // karyawan berikutnya di halaman baru
                 }
                 $row = $lastRow + 2;
             }
-            // Lebar kolom mengikuti tulisan terpanjang di tabel (satu baris); Uraian (K–N) berlipat.
-            ExcelColumnFit::applyToRanges($sheet, $tableRanges);
             $this->centerTitles($sheet, $titleRows, array_keys($widths));
-
-            // Dicetak diperkecil: satu blok karyawan = satu halaman A4.
-            $setup = $sheet->getPageSetup();
-            $setup->setOrientation(PageSetup::ORIENTATION_PORTRAIT)->setPaperSize(PageSetup::PAPERSIZE_A4);
-            $setup->setFitToWidth(1)->setFitToHeight(count($group['blocks']));
-            $setup->setHorizontalCentered(true);   // isi di tengah kertas, jadi judul yang ditengahkan juga di tengah kertas
-            $sheet->getPageMargins()->setLeft(0.4)->setRight(0.4)->setTop(0.4)->setBottom(0.4);
+            $this->fitBlocksToA4($sheet, $blockRanges, array_keys($widths));
         }
         $spreadsheet->setActiveSheetIndex(0);
 
@@ -95,6 +120,95 @@ class SpklWorkbook
         $spreadsheet->disconnectWorksheets();
 
         return $path;
+    }
+
+    /**
+     * Cetak A4 tegak, satu blok karyawan per halaman:
+     *   1. tinggi setiap baris blok = jumlah baris tulisan terbanyak di baris itu × tinggi baris bawaan (judul kolom &
+     *      Uraian Pekerjaan berlipat; sel gabungan tidak pernah menyesuaikan tinggi sendiri di Excel); baris kosong
+     *      (jarak & ruang tanda tangan) EMPTY_ROW_HEIGHT;
+     *   2. skala cetak (persen) = yang terkecil dari (lebar kertas ÷ lebar blok) dan (tinggi kertas ÷ tinggi blok
+     *      tertinggi, termasuk baris kosong pemisah di atasnya), dibulatkan ke bawah, maksimal 100%.
+     *
+     * @param  list<array{int, int}>  $blockRanges  [baris awal, baris akhir] tiap blok
+     * @param  list<string>  $letters  kolom blok
+     */
+    private function fitBlocksToA4(Worksheet $sheet, array $blockRanges, array $letters): void
+    {
+        $font = $sheet->getParent()->getDefaultStyle()->getFont();
+        $lineHeight = SharedFont::getDefaultRowHeightByFont($font);
+        $mergedWidths = $this->mergedWidths($sheet);
+
+        $tallest = 0;
+        foreach ($blockRanges as $index => [$from, $to]) {
+            if ($index > 0) {
+                $sheet->getRowDimension($from - 1)->setRowHeight(self::EMPTY_ROW_HEIGHT);   // pemisah di atas blok (halaman baru)
+            }
+            $height = $index > 0 ? self::EMPTY_ROW_HEIGHT : 0;
+            for ($row = $from; $row <= $to; $row++) {
+                $lines = $this->lineCount($sheet, $row, $letters, $mergedWidths);
+                $rowHeight = $lines === 0 ? self::EMPTY_ROW_HEIGHT : $lines * $lineHeight;
+                $sheet->getRowDimension($row)->setRowHeight($rowHeight);
+                $height += $rowHeight;
+            }
+            $tallest = max($tallest, $height);
+        }
+
+        $widthPoints = array_sum(array_map(fn (string $letter) => $sheet->getColumnDimension($letter)->getWidth(), $letters)) * self::POINTS_PER_WIDTH_UNIT;
+        $margin = self::MARGIN_INCHES * 72;
+        $fit = min((self::A4_WIDTH_POINTS - 2 * $margin) / $widthPoints, (self::A4_HEIGHT_POINTS - 2 * $margin) / max($tallest, 1));
+
+        $setup = $sheet->getPageSetup();
+        $setup->setOrientation(PageSetup::ORIENTATION_PORTRAIT)->setPaperSize(PageSetup::PAPERSIZE_A4);
+        $setup->setScale(max(10, min(100, (int) floor($fit * self::PRINT_SAFETY * 100))));   // juga mematikan "Fit To"
+        $setup->setHorizontalCentered(true);   // isi di tengah kertas, jadi judul yang ditengahkan juga di tengah kertas
+        $setup->setPrintArea('A1:'.end($letters).$blockRanges[array_key_last($blockRanges)][1]);
+        $sheet->getPageMargins()->setLeft(self::MARGIN_INCHES)->setRight(self::MARGIN_INCHES)
+            ->setTop(self::MARGIN_INCHES)->setBottom(self::MARGIN_INCHES);
+    }
+
+    /**
+     * Jumlah baris tulisan terbanyak di satu baris sheet: sel berlipat (wrap) dipecah per kata selebar kolomnya
+     * (atau gabungan kolomnya; kata tidak dipotong, sama dengan Excel); sel lain satu baris. 0 = baris kosong.
+     *
+     * @param  array<string, float>  $mergedWidths  [sel kiri atas gabungan => total lebar]
+     */
+    private function lineCount(Worksheet $sheet, int $row, array $letters, array $mergedWidths): int
+    {
+        $lines = 0;
+        foreach ($letters as $letter) {
+            $cell = "{$letter}{$row}";
+            $value = $sheet->cellExists($cell) ? $sheet->getCell($cell)->getValue() : null;
+            if ($value === null || $value === '') {
+                continue;
+            }
+            if (! is_string($value) || ! $sheet->getStyle($cell)->getAlignment()->getWrapText()) {
+                $lines = max($lines, 1);
+
+                continue;
+            }
+            $width = $mergedWidths[$cell] ?? $sheet->getColumnDimension($letter)->getWidth();
+            $perLine = max(1, (int) floor(($width - 1) / self::CHAR_FACTOR));
+            $lines = max($lines, count(explode("\n", wordwrap($value, $perLine, "\n"))));
+        }
+
+        return $lines;
+    }
+
+    /** @return array<string, float> [sel kiri atas setiap gabungan sel => total lebar kolomnya] */
+    private function mergedWidths(Worksheet $sheet): array
+    {
+        $widths = [];
+        foreach ($sheet->getMergeCells() as $range) {
+            [[$fromColumn, $fromRow], [$toColumn]] = Coordinate::rangeBoundaries($range);
+            $total = 0;
+            for ($column = $fromColumn; $column <= $toColumn; $column++) {
+                $total += $sheet->getColumnDimension(Coordinate::stringFromColumnIndex($column))->getWidth();
+            }
+            $widths[Coordinate::stringFromColumnIndex($fromColumn).$fromRow] = $total;
+        }
+
+        return $widths;
     }
 
     /** @return array<string, int> [huruf kolom => lebar], ditambah kolom Jenis untuk SPKL Lembur Reguler + DW */
@@ -156,11 +270,9 @@ class SpklWorkbook
     }
 
     /**
-     * Tulis satu blok mulai baris $top.
-     *
-     * @return array{int, array{int, int}} [baris terakhir blok, [baris judul tabel, baris "Jumlah Jam yang Dibayar"]]
+     * Tulis satu blok mulai baris $top. Hasilnya baris terakhir blok (nama penanda tangan).
      */
-    private function writeBlock(Worksheet $sheet, array $block, array $document, int $top): array
+    private function writeBlock(Worksheet $sheet, array $block, array $document, int $top): int
     {
         $letters = array_keys(self::widths($document));
         $last = end($letters);
@@ -180,9 +292,10 @@ class SpklWorkbook
             $sheet->setCellValue('A'.($top + 2 + $offset), $label);
             PayrollExportWorkbook::setValue($sheet, 'B'.($top + 2 + $offset), ': '.$value);
         }
-        $sheet->setCellValue('J'.($top + 3), 'Gaji Pokok 1 (satu) bulan');
+        // Label di I (I–L cukup lebar untuk satu baris), nilai di M.
+        $sheet->setCellValue('I'.($top + 3), 'Gaji Pokok 1 (satu) bulan');
         $sheet->setCellValue('M'.($top + 3), ': Rp '.PayrollExportText::rupiah($block['base_salary']));
-        $sheet->setCellValue('J'.($top + 4), 'Tarif per jam');
+        $sheet->setCellValue('I'.($top + 4), 'Tarif per jam');
         $sheet->setCellValue('M'.($top + 4), ': Rp '.PayrollExportText::rupiah($block['hourly_rate']));
 
         // Judul kolom.
@@ -209,6 +322,7 @@ class SpklWorkbook
         foreach ($subTitles as $letter => $title) {
             $sheet->setCellValue("{$letter}{$sub}", $title);
         }
+        $sheet->getStyle("C{$sub}:J{$sub}")->getFont()->setSize(self::SUB_TITLE_FONT_SIZE);
         $headStyle = $sheet->getStyle("A{$head}:{$last}{$sub}");
         $headStyle->getFont()->setBold(true);
         $headStyle->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER)->setVertical(Alignment::VERTICAL_CENTER)->setWrapText(true);
@@ -277,8 +391,10 @@ class SpklWorkbook
         $sheet->getStyle('E'.($sub + 1).":J{$productRow}")->getNumberFormat()->setFormatCode(self::HOURS_FORMAT);
         $sheet->getStyle('M'.($top + 3).':M'.($top + 4))->getNumberFormat()->setFormatCode(self::MONEY_FORMAT);
 
+        // Uraian Pekerjaan & jam Dari/Sampai (beberapa lembur satu tanggal: "17:00, 20:00") berlipat.
         $sheet->getStyle('K'.($sub + 1).":K{$paidRow}")->getAlignment()->setWrapText(true);
+        $sheet->getStyle('C'.($sub + 1).':D'.($sumRow - 1))->getAlignment()->setWrapText(true);
 
-        return [PayrollExportWorkbook::writeSignatureBlock($sheet, $block['signature'], $paidRow + 1, count($letters)), [$head, $paidRow]];
+        return PayrollExportWorkbook::writeSignatureBlock($sheet, $block['signature'], $paidRow + 1, count($letters));
     }
 }

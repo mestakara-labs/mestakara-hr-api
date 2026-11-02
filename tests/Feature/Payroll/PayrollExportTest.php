@@ -5,6 +5,7 @@ namespace Tests\Feature\Payroll;
 use App\Http\Controllers\Api\V1\Payroll\PayrollExportController;
 use App\Models\Employee;
 use App\Models\EmployeeWageScheme;
+use App\Models\OvertimeEntry;
 use App\Models\PlacementObject;
 use App\Models\PositionAssignment;
 use App\Models\User;
@@ -315,12 +316,10 @@ class PayrollExportTest extends TestCase
         $sheet = $spreadsheet->getSheetByName('Gunung Mas');
         $this->assertSame('PTPN I (Persero) Regional 2', $sheet->getCell('A1')->getValue());   // disingkat supaya judul bisa tepat di tengah
         $this->assertSame(['Tahoma', 11.0], [$sheet->getStyle('A1')->getFont()->getName(), (float) $sheet->getStyle('A1')->getFont()->getSize()]);
-        $this->assertSame('DAFTAR LEMBUR', $sheet->getCell('F1')->getValue());
+        $this->assertSame('DAFTAR LEMBUR', $this->spklTitle($sheet, 1));
         // Judul tepat di tengah: total lebar kolom di kiri gabungan judul = di kanannya.
         $widths = array_map(fn (string $letter) => $sheet->getColumnDimension($letter)->getWidth(), range('A', 'N'));
-        [[$titleFrom], [$titleTo]] = Coordinate::rangeBoundaries(
-            collect($sheet->getMergeCells())->first(fn (string $range) => str_starts_with($range, 'F1:')),
-        );
+        [[$titleFrom], [$titleTo]] = Coordinate::rangeBoundaries($this->spklTitleRange($sheet, 1));
         $this->assertEqualsWithDelta(array_sum(array_slice($widths, 0, $titleFrom - 1)), array_sum(array_slice($widths, $titleTo)), 0.01);
         $this->assertSame('BULAN : OKTOBER 2026 (DRAF)', $sheet->getCell('N1')->getValue());
         $this->assertSame(': Ani', $sheet->getCell('B4')->getValue());
@@ -346,12 +345,49 @@ class PayrollExportTest extends TestCase
         $this->assertSame(Border::BORDER_THIN, $sheet->getStyle('F44')->getBorders()->getBottom()->getBorderStyle());
         $this->assertSame('Gunung Mas, 05 November 2026', $sheet->getCell('K45')->getValue());
 
-        // Dicetak diperkecil: satu blok karyawan = satu halaman A4; lebar kolom mengikuti tulisan terpanjang (satu baris).
-        $this->assertSame([PageSetup::PAPERSIZE_A4, 1, 1], [$sheet->getPageSetup()->getPaperSize(), $sheet->getPageSetup()->getFitToWidth(), $sheet->getPageSetup()->getFitToHeight()]);
-        $this->assertGreaterThanOrEqual(mb_strlen('Setelah 8 Jam Pertama'), $sheet->getColumnDimension('I')->getWidth());
+        // Cetak A4 tegak dengan skala tetap (bukan "Fit To", yang membuat Excel mengabaikan pemisah halaman manual);
+        // judul sub-kolom jam berlipat dengan huruf kecil supaya kolom ramping. Satu karyawan per halaman: lihat test di bawah.
+        $setup = $sheet->getPageSetup();
+        $this->assertSame([PageSetup::PAPERSIZE_A4, PageSetup::ORIENTATION_PORTRAIT, false], [$setup->getPaperSize(), $setup->getOrientation(), $setup->getFitToPage()]);
+        $this->assertGreaterThanOrEqual(70, $setup->getScale());
+        $this->assertSame([true, 9.0], [$sheet->getStyle('I9')->getAlignment()->getWrapText(), (float) $sheet->getStyle('I9')->getFont()->getSize()]);
+        $this->assertSame(['Gaji Pokok 1 (satu) bulan', 'Tarif per jam'], [$sheet->getCell('I4')->getValue(), $sheet->getCell('I5')->getValue()]);
 
         $this->export('document=spkl_dw&employee_category=casual', true)->assertUnprocessable()
             ->assertJsonPath('errors.document.0', 'Tidak ada karyawan Casual untuk SPKL Lembur DW di kelompok yang dipilih');
+    }
+
+    public function test_spkl_excel_prints_one_employee_per_a4_portrait_page(): void
+    {
+        // Dua karyawan di kelompok Gunung Mas; Euis punya uraian panjang (berlipat) & dua lembur pada satu tanggal.
+        $euis = $this->mountainEmployee('Euis', '8101', 2, null);
+        $this->storeOvertime($euis, '2026-10-01', '17:00', '18:00');
+        $this->storeOvertime($euis, '2026-10-01', '20:00', '21:00');
+        OvertimeEntry::where('employee_id', $euis->id)->update(['description' => str_repeat('Membantu pekerjaan operasional di luar jam kerja ', 2)]);
+
+        $sheet = $this->workbook($this->export('document=spkl_reguler&employee_category=casual')->assertOk())->getSheetByName('Gunung Mas');
+        $setup = $sheet->getPageSetup();
+
+        // Pemisah halaman tepat di akhir blok karyawan pertama (Ani), blok kedua mulai sesudahnya.
+        $breaks = array_map(fn (string $cell) => (int) substr($cell, 1), array_keys($sheet->getRowBreaks()));
+        $this->assertCount(1, $breaks);
+        $this->assertSame('DAFTAR LEMBUR', $this->spklTitle($sheet, $breaks[0] + 2));
+        $this->assertSame('A1:N'.$sheet->getHighestRow(), $setup->getPrintArea());
+
+        // Setiap halaman (tinggi baris × skala) muat di A4 tegak bermargin 0,4 inci; lebar juga (± 6 pt per satuan kolom).
+        $printable = [595.28 - 2 * 0.4 * 72, 841.89 - 2 * 0.4 * 72];
+        $width = array_sum(array_map(fn (string $letter) => $sheet->getColumnDimension($letter)->getWidth(), range('A', 'N'))) * 6;
+        $this->assertLessThanOrEqual($printable[0], $width * $setup->getScale() / 100);
+        foreach ([[1, $breaks[0]], [$breaks[0] + 1, $sheet->getHighestRow()]] as [$from, $to]) {
+            $height = array_sum(array_map(fn (int $row) => $sheet->getRowDimension($row)->getRowHeight(), range($from, $to)));
+            $this->assertLessThanOrEqual($printable[1], $height * $setup->getScale() / 100, "baris {$from}-{$to}");
+        }
+
+        // Baris berlipat diberi tinggi sesuai jumlah barisnya (sel gabungan Uraian tidak menyesuaikan sendiri di Excel).
+        $euisRow = $breaks[0] + 2 + 9;   // 1 Okt di blok Euis
+        $this->assertSame(['17:00, 20:00', 'Membantu'], [$sheet->getCell("C{$euisRow}")->getValue(), strtok((string) $sheet->getCell("K{$euisRow}")->getValue(), ' ')]);
+        $this->assertGreaterThanOrEqual(45.0, $sheet->getRowDimension($euisRow)->getRowHeight());
+        $this->assertSame(15.0, $sheet->getRowDimension($euisRow + 1)->getRowHeight());   // tanggal tanpa lembur: satu baris
     }
 
     public function test_spkl_reguler_for_daily_worker(): void
@@ -389,7 +425,7 @@ class PayrollExportTest extends TestCase
 
         // Satu blok: 5 Okt dua baris (Reguler lalu DW), 6 Okt baris DW; kolom Jenis di O; upah = reguler + DW.
         $sheet = $spreadsheet->getSheetByName('Gunung Mas');
-        $this->assertSame('DAFTAR LEMBUR', $sheet->getCell('F1')->getValue());   // judul tanpa jenis lembur
+        $this->assertSame('DAFTAR LEMBUR', $this->spklTitle($sheet, 1));   // judul tanpa jenis lembur
         $this->assertSame('Jenis', $sheet->getCell('O8')->getValue());
         $this->assertSame(['Senin', '5', '17:00', '19:00', '2', '1', '1'], array_slice($sheet->rangeToArray('A14:G14', null, true, true)[0], 0, 7));
         $this->assertSame('Reguler', $sheet->getCell('O14')->getValue());
@@ -495,6 +531,18 @@ class PayrollExportTest extends TestCase
             }
         }
         $this->fail("Tidak ada baris JUMLAH di sheet {$sheet->getTitle()}");
+    }
+
+    /** Gabungan sel judul "DAFTAR LEMBUR" pada baris kop blok SPKL (posisinya ditengahkan menurut lebar kolom). */
+    private function spklTitleRange(Worksheet $sheet, int $row): string
+    {
+        return collect($sheet->getMergeCells())->first(fn (string $range) => preg_match('/^[B-M]'.$row.':[B-M]'.$row.'$/', $range) === 1)
+            ?? $this->fail("Tidak ada gabungan sel judul di baris {$row}");
+    }
+
+    private function spklTitle(Worksheet $sheet, int $row): mixed
+    {
+        return $sheet->getCell(strtok($this->spklTitleRange($sheet, $row), ':'))->getValue();
     }
 
     /** @return list<string> isi sel "<tempat>, <tanggal>" (blok tanda tangan) di sheet itu */

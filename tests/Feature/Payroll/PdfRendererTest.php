@@ -4,9 +4,9 @@ namespace Tests\Feature\Payroll;
 
 use App\Services\Payroll\PdfRenderer;
 use Illuminate\Support\Facades\File;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Process;
 use Illuminate\Support\Facades\View;
-use RuntimeException;
 use setasign\Fpdi\Fpdi;
 use Tests\TestCase;
 
@@ -18,13 +18,9 @@ class PdfRendererTest extends TestCase
 {
     private string $viewDir;
 
-    /** Nilai asli NUMBER_OF_PROCESSORS (dikembalikan sesudah test). */
-    private string|false $processors;
-
     protected function setUp(): void
     {
         parent::setUp();
-        $this->processors = getenv('NUMBER_OF_PROCESSORS');
         $this->viewDir = sys_get_temp_dir().'/pdf-renderer-test-'.uniqid();
         File::ensureDirectoryExists($this->viewDir);
         File::put("{$this->viewDir}/pdf-test-page.blade.php", '<html><body><p>Bagian {{ $label }}</p></body></html>');
@@ -34,7 +30,6 @@ class PdfRendererTest extends TestCase
     protected function tearDown(): void
     {
         File::deleteDirectory($this->viewDir);
-        putenv($this->processors === false ? 'NUMBER_OF_PROCESSORS' : "NUMBER_OF_PROCESSORS={$this->processors}");
         parent::tearDown();
     }
 
@@ -61,30 +56,33 @@ class PdfRendererTest extends TestCase
         unlink($path);
     }
 
-    public function test_failed_render_process_stops_the_export(): void
+    public function test_failed_render_process_falls_back_to_rendering_in_order(): void
     {
+        // Mis. hosting mematikan proses (signal 9) karena batas memori / jumlah proses: ekspor tetap berhasil.
         config(['hr.pdf_processes' => 2]);
-        Process::fake(['*' => Process::result(errorOutput: 'Memori habis', exitCode: 1)]);
+        Process::fake(['*' => Process::result(errorOutput: 'Memori habis', exitCode: 137)]);
+        Log::spy();
 
-        $this->expectException(RuntimeException::class);
-        $this->expectExceptionMessage('Render PDF gagal: Memori habis');
+        $path = app(PdfRenderer::class)->writeParts($this->parts());
 
-        app(PdfRenderer::class)->writeParts($this->parts());
+        $this->assertSame([[210, 297], [297, 210], [148, 210]], $this->pageSizes($path));
+        Log::shouldHaveReceived('warning')->once()->withArgs(fn (string $message) => str_contains($message, 'Render PDF gagal: Memori habis'));
+        unlink($path);
     }
 
     public function test_process_count_follows_setting_cpu_count_and_number_of_parts(): void
     {
-        putenv('NUMBER_OF_PROCESSORS=12');
-
+        // auto: setengah inti CPU, maksimal 4 (hosting bersama menampilkan semua inti server fisik), maks jumlah bagian.
         config(['hr.pdf_processes' => 'auto']);
-        $this->assertSame([6, 3, 1], [PdfRenderer::processCount(9), PdfRenderer::processCount(3), PdfRenderer::processCount(1)]);   // setengah inti CPU, maks jumlah bagian
+        $this->assertSame([4, 3, 1], [PdfRenderer::processCount(9, 12), PdfRenderer::processCount(3, 12), PdfRenderer::processCount(1, 12)]);
+        $this->assertSame([4, 2, 1], [PdfRenderer::processCount(9, 64), PdfRenderer::processCount(9, 4), PdfRenderer::processCount(9, 1)]);
 
         config(['hr.pdf_processes' => '4']);
-        $this->assertSame([4, 2], [PdfRenderer::processCount(9), PdfRenderer::processCount(2)]);
+        $this->assertSame([4, 2], [PdfRenderer::processCount(9, 64), PdfRenderer::processCount(2, 64)]);
 
         foreach (['1', '0', 'tidak-valid'] as $setting) {
             config(['hr.pdf_processes' => $setting]);
-            $this->assertSame(1, PdfRenderer::processCount(9), "setting {$setting}");
+            $this->assertSame(1, PdfRenderer::processCount(9, 64), "setting {$setting}");
         }
     }
 

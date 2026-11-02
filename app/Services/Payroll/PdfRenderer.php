@@ -5,6 +5,7 @@ namespace App\Services\Payroll;
 use App\Support\DocumentStyle;
 use Dompdf\Dompdf;
 use Dompdf\Options;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Process;
 use RuntimeException;
 use setasign\Fpdi\Fpdi;
@@ -18,8 +19,12 @@ use function Illuminate\Support\php_binary;
  *
  * Tata letak dompdf lambat (± 0,45 detik per halaman SPKL), jadi bagian-bagian PDF besar dirender BERSAMAAN di proses
  * PHP terpisah (perintah artisan hr:render-pdf): HTML tiap bagian dibuat di sini lalu ditulis ke file sementara, setiap
- * proses mengubah satu file HTML menjadi PDF. Jumlah proses: config hr.pdf_processes ("auto" = setengah inti CPU;
- * 1 = berurutan di proses ini saja), tidak lebih dari jumlah bagian.
+ * proses mengubah satu file HTML menjadi PDF. Jumlah proses: config hr.pdf_processes ("auto" = setengah inti CPU,
+ * maksimal AUTO_MAX_PROCESSES; 1 = berurutan di proses ini saja), tidak lebih dari jumlah bagian.
+ *
+ * Hosting bersama (mis. cPanel / CloudLinux) membatasi jumlah proses & memori per akun dan bisa mematikan proses
+ * (signal 9), atau tidak mengizinkan proc_open sama sekali. Karena itu render bersamaan yang gagal TIDAK menggagalkan
+ * ekspor: bagian-bagian dirender ulang berurutan di proses ini (lebih lambat) dan kejadiannya dicatat di log.
  *
  * Font: Tahoma (DocumentStyle::FONT). File font Tahoma milik Microsoft TIDAK disimpan di repo; diambil dari folder
  * font sistem (FONT_DIRS) lalu didaftarkan sekali ke cache font dompdf (storage/app/dompdf-fonts). Kalau file tidak
@@ -46,6 +51,12 @@ class PdfRenderer
 
     /** Jeda pemeriksaan proses yang sedang berjalan (mikrodetik). */
     private const POLL_MICROSECONDS = 20_000;
+
+    /**
+     * Batas atas jumlah proses untuk "auto". Di hosting bersama /proc/cpuinfo menampilkan SEMUA inti server fisik
+     * (bisa puluhan), bukan jatah akun; tanpa batas ini terlalu banyak proses dijalankan lalu dimatikan hosting.
+     */
+    public const AUTO_MAX_PROCESSES = 4;
 
     /**
      * @param  array<string, mixed>  $data
@@ -85,8 +96,17 @@ class PdfRenderer
             return $this->write($parts[0]['view'], $parts[0]['data'], $parts[0]['orientation'], $parts[0]['paper']);
         }
 
-        $processes = self::processCount(count($parts));
-        $partFiles = $processes > 1 ? $this->renderInProcesses($parts, $processes) : $this->renderInOrder($parts);
+        $processes = function_exists('proc_open') ? self::processCount(count($parts)) : 1;
+        try {
+            $partFiles = $processes > 1 ? $this->renderInProcesses($parts, $processes) : $this->renderInOrder($parts);
+        } catch (Throwable $exception) {
+            if ($processes === 1) {
+                throw $exception;
+            }
+            // Mis. proses dimatikan hosting (signal 9) karena batas memori / jumlah proses: ulangi berurutan.
+            Log::warning("Render PDF bersamaan ({$processes} proses) gagal, diulang berurutan: {$exception->getMessage()}");
+            $partFiles = $this->renderInOrder($parts);
+        }
 
         $merged = new Fpdi;
         foreach ($partFiles as $file) {
@@ -107,13 +127,15 @@ class PdfRenderer
     }
 
     /**
-     * Jumlah proses render untuk $partCount bagian: config hr.pdf_processes ("auto" = setengah inti CPU), minimal 1,
-     * tidak lebih dari jumlah bagian.
+     * Jumlah proses render untuk $partCount bagian: config hr.pdf_processes ("auto" = setengah inti CPU, maksimal
+     * AUTO_MAX_PROCESSES), minimal 1, tidak lebih dari jumlah bagian. $cpuCount null = jumlah inti CPU server ini.
      */
-    public static function processCount(int $partCount): int
+    public static function processCount(int $partCount, ?int $cpuCount = null): int
     {
         $setting = config('hr.pdf_processes');
-        $count = $setting === null || $setting === '' || $setting === 'auto' ? intdiv(self::cpuCount(), 2) : (int) $setting;
+        $count = $setting === null || $setting === '' || $setting === 'auto'
+            ? min(intdiv($cpuCount ?? self::cpuCount(), 2), self::AUTO_MAX_PROCESSES)
+            : (int) $setting;
 
         return max(1, min($count, $partCount));
     }
@@ -150,7 +172,7 @@ class PdfRenderer
     /**
      * Bagian dirender BERSAMAAN: HTML tiap bagian dibuat di proses ini, lalu paling banyak $limit proses
      * "php artisan hr:render-pdf" berjalan sekaligus (bagian berikutnya dimulai begitu satu proses selesai).
-     * Satu proses gagal = semua dihentikan dan exception (file sementara dihapus).
+     * Satu proses gagal = semua dihentikan dan exception (file sementara dihapus; writeParts lalu mengulang berurutan).
      *
      * @return list<string> file PDF per bagian, urut
      */

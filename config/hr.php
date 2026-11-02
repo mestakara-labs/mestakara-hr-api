@@ -18,7 +18,9 @@ return [
     'file_url_prefix' => env('HR_FILE_URL_PREFIX', '/api'),
 
     // Jumlah proses PHP yang merender bagian-bagian PDF besar BERSAMAAN (ekspor Daftar Upah / Payroll / SPKL).
-    // "auto" = setengah jumlah inti CPU server (minimal 1); angka = jumlah tetap; 1 = berurutan tanpa proses tambahan.
+    // "auto" = setengah jumlah inti CPU server (minimal 1, maksimal 4); angka = jumlah tetap; 1 = berurutan tanpa proses
+    // tambahan. Hosting bersama (cPanel / CloudLinux) membatasi proses & memori per akun: pakai 1 atau 2 di sana.
+    // Kalau proses gagal / dimatikan server, PDF otomatis dirender ulang berurutan (lihat PdfRenderer).
     'pdf_processes' => env('HR_PDF_PROCESSES', 'auto'),
 
     // Program PHP CLI untuk proses render PDF. Kosong = dicari otomatis (isi kalau server memakai php-fpm / php-cgi).

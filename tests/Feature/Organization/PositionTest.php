@@ -3,8 +3,10 @@
 namespace Tests\Feature\Organization;
 
 use App\Models\Division;
+use App\Models\Employee;
 use App\Models\OrganizationDecree;
 use App\Models\Position;
+use App\Models\PositionAssignment;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Laravel\Sanctum\Sanctum;
@@ -89,6 +91,20 @@ class PositionTest extends TestCase
             ->assertOk()
             ->assertJsonPath('data.decree_number', '')
             ->assertJsonPath('data.positions', []);
+    }
+
+    public function test_holder_whatsapp_is_empty_when_not_filled_instead_of_falling_back_to_phone(): void
+    {
+        $position = Position::factory()->create();
+        $withoutWhatsapp = Employee::factory()->create(['phone' => '081234567890', 'whatsapp' => null]);
+        $withWhatsapp = Employee::factory()->create(['phone' => '081234567890', 'whatsapp' => '089876543210']);
+        PositionAssignment::factory()->for($position)->for($withoutWhatsapp)->create();
+        PositionAssignment::factory()->for($position)->for($withWhatsapp)->create();
+
+        $employees = collect($this->getJson("/api/v1/positions/{$position->id}")->assertOk()->json('data.employees'));
+
+        $this->assertSame('', $employees->firstWhere('id', $withoutWhatsapp->id)['whatsapp']);
+        $this->assertSame('089876543210', $employees->firstWhere('id', $withWhatsapp->id)['whatsapp']);
     }
 
     public function test_requests_without_token_are_rejected(): void

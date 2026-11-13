@@ -57,8 +57,8 @@ class PositionResource extends JsonResource
             'name' => $employee->name,
             'email' => $employee->email ?? '',
             'phone' => $employee->phone ?? '',
-            /** Sama dengan phone kalau karyawan tidak punya nomor WA tersendiri. */
-            'whatsapp' => $employee->whatsapp ?? $employee->phone ?? '',
+            /** String kosong kalau No. WhatsApp belum diisi (TIDAK diganti nomor telepon). */
+            'whatsapp' => $employee->whatsapp ?? '',
             'sub_unit_name' => $assignment->subUnit->name,
             'placement_object_names' => $assignment->placementObjects->pluck('name'),
             // Atasan yang penugasannya sudah selesai tidak digambar lagi di bagan.

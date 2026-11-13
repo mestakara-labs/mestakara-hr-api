@@ -142,12 +142,23 @@ class Employee extends Model
      */
     public function mainAssignment(?Carbon $date = null): ?PositionAssignment
     {
+        return $this->assignmentsByPriorityOn($date)->first();
+    }
+
+    /**
+     * Penugasan yang berjalan pada tanggal tertentu, urut prioritas: Definitif dulu, lalu level BRM tertinggi.
+     * Indeks 0 = penugasan utama (lihat mainAssignment()). Relasi yang dibutuhkan sama dengan mainAssignment().
+     *
+     * @return Collection<int, PositionAssignment>
+     */
+    public function assignmentsByPriorityOn(?Carbon $date = null): Collection
+    {
         return $this->assignmentsOn($date)
             ->sortBy(fn (PositionAssignment $assignment) => [
                 $assignment->assignment_status === AssignmentStatus::Definitive->value ? 0 : 1,
                 $assignment->position->brm_level,
             ])
-            ->first();
+            ->values();
     }
 
     // -------------------------------------------------------------------------

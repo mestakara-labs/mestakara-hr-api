@@ -7,6 +7,7 @@ use App\Http\Resources\Payroll\EmployeeCostCenterResource;
 use App\Models\Employee;
 use App\Models\EmployeeEducation;
 use App\Models\EmployeeFamilyMember;
+use App\Models\PositionAssignment;
 use App\Services\EmployeeStatusService;
 use App\Services\FileStorage;
 use App\Support\DataPeriod;
@@ -26,13 +27,17 @@ use Illuminate\Support\Carbon;
 class EmployeeProfileResource extends JsonResource
 {
     public const RELATIONS = [
-        'educations.certificateFile', 'familyMembers', 'activeAssignments.position',
+        'educations.certificateFile', 'familyMembers',
+        'activeAssignments.position.division', 'activeAssignments.subUnit', 'activeAssignments.placementObjects.category',
         'activationItems.activation', 'terminationItems.termination',
         'bankAccounts', 'costCenterHistories.costCenter',
     ];
 
-    /** Relasi tambahan untuk tanggal acuan: semua penugasan (untuk jabatan pada tanggal itu). */
-    public const RELATIONS_FOR_PERIOD = [...self::RELATIONS, 'assignments.position'];
+    /** Relasi tambahan untuk tanggal acuan: semua penugasan (untuk jabatan & penempatan pada tanggal itu). */
+    public const RELATIONS_FOR_PERIOD = [
+        ...self::RELATIONS,
+        'assignments.position.division', 'assignments.subUnit', 'assignments.placementObjects.category',
+    ];
 
     /** Tanggal acuan periode; null = hari ini (perilaku biasa). */
     private ?Carbon $asOf = null;
@@ -69,7 +74,7 @@ class EmployeeProfileResource extends JsonResource
             'religion' => $this->religion,
             'marital_status' => $this->marital_status,
             'phone' => $this->phone,
-            /** null = sama dengan nomor telepon. */
+            /** null = belum diisi. */
             'whatsapp' => $this->whatsapp,
             'email' => $this->email,
             'address' => $this->address,
@@ -111,6 +116,8 @@ class EmployeeProfileResource extends JsonResource
             // --- Penempatan ---
             /** Jabatan utama (Definitif, atau BRM tertinggi) dari penugasan aktif; null = belum ditempatkan. */
             'position' => $this->mainPosition(),
+            /** SEMUA penugasan yang berjalan, jabatan utama di indeks 0; [] = belum ditempatkan. */
+            'active_positions' => $this->activePositions(),
 
             // --- Data dasar upah (yang berlaku hari ini / pada tanggal acuan periode) ---
             /** { bank_name, account_number, account_holder, effective_date }, atau null. */
@@ -120,20 +127,72 @@ class EmployeeProfileResource extends JsonResource
         ];
     }
 
-    /** Jabatan utama: { id, title, brm_level, job_grade }, atau null. */
+    /** Jabatan utama beserta penempatannya (bentuk sama dengan placementSummary()), atau null. */
     private function mainPosition(): ?array
     {
-        $position = $this->mainAssignment($this->asOf)?->position;
+        $assignment = $this->mainAssignment($this->asOf);
 
-        if ($position === null) {
-            return null;
-        }
+        return $assignment === null ? null : $this->placementSummary($assignment);
+    }
+
+    /**
+     * Semua penugasan yang berjalan pada tanggal acuan, urut prioritas (Definitif dulu, lalu BRM tertinggi).
+     * Urutannya sama dengan mainAssignment(), jadi jabatan utama selalu di indeks 0.
+     *
+     * @return list<array<string, mixed>>
+     */
+    private function activePositions(): array
+    {
+        return $this->assignmentsByPriorityOn($this->asOf)
+            ->map(fn (PositionAssignment $assignment) => $this->placementSummary($assignment))
+            ->values()
+            ->all();
+    }
+
+    /**
+     * Ringkasan satu penugasan: jabatan, bidang, sub unit, dan objek penempatan.
+     * Objek penempatan hanya diambil yang PERTAMA, karena ke depan satu penugasan hanya boleh 1 objek.
+     *
+     * @return array{
+     *     assignment_id: string,
+     *     id: string,
+     *     title: string,
+     *     brm_level: int,
+     *     job_grade: int|null,
+     *     assignment_status: string,
+     *     division: array{id: string, name: string}|null,
+     *     sub_unit: array{id: string, name: string, afdeling_code: string|null},
+     *     placement_object: array{id: string, name: string, category_name: string|null}|null,
+     * }
+     */
+    private function placementSummary(PositionAssignment $assignment): array
+    {
+        $position = $assignment->position;
+        $division = $position->division;
+        $subUnit = $assignment->subUnit;
+        $placementObject = $assignment->placementObjects->first();
 
         return [
+            'assignment_id' => $assignment->id,
             'id' => $position->id,
             'title' => $position->title,
             'brm_level' => $position->brm_level,
             'job_grade' => $position->job_grade,
+            'assignment_status' => $assignment->assignment_status,
+            'division' => $division === null ? null : [
+                'id' => $division->id,
+                'name' => $division->name,
+            ],
+            'sub_unit' => [
+                'id' => $subUnit->id,
+                'name' => $subUnit->name,
+                'afdeling_code' => $subUnit->afdeling_code,
+            ],
+            'placement_object' => $placementObject === null ? null : [
+                'id' => $placementObject->id,
+                'name' => $placementObject->name,
+                'category_name' => $placementObject->category?->name,
+            ],
         ];
     }
 
